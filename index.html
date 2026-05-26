@@ -126,6 +126,7 @@ let S={
   scenario:null,scenVal:15000,
   goals5Step:"goals",
   selectedTasks:[],
+  activeProfile:"construction",   // "construction" | "dental"
   form:{
     businessName:"Pinnacle Construction Ltd.",industry:"construction",province:"BC",
     fiscalEnd:"Dec",employees:"8",revenue:"1200000",income:"387000",passive:"38000",
@@ -134,6 +135,169 @@ let S={
   },
   notif:{cashAlerts:true,taxAlerts:true,weeklyDigest:true,advisorUpdates:true,smsAlerts:false},
 };
+
+// ── PROFILE DATA — two demo scenarios for IRAP presentation ──────────────────
+const PROFILES = {
+  construction:{
+    label:"Pinnacle Construction Ltd.",
+    tag:"Construction CCPC",
+    color:"#0E8A7D",
+    icon:"◈",
+    form:{
+      businessName:"Pinnacle Construction Ltd.",industry:"construction",province:"BC",
+      fiscalEnd:"Dec",employees:"8",revenue:"1200000",income:"387000",passive:"38000",
+      salary:"95000",dividends:"45000",rrspRoom:"28400",rrspContrib:"18000",tfsa:"7000",
+      holdco:false,coli:false,ipp:false,goals:["cash-flow","tax-savings"],
+    },
+    stats:{verified:64120,pending:412000,forecast:91,dataScore:78},
+    badge:"Construction & trades",
+  },
+  dental:{
+    label:"Westside Dental PC",
+    tag:"Dental Professional Corporation",
+    color:"#7C3AED",
+    icon:"◉",
+    form:{
+      businessName:"Westside Dental Professional Corp.",industry:"healthcare",province:"BC",
+      fiscalEnd:"Dec",employees:"6",revenue:"980000",income:"512000",passive:"67000",
+      salary:"120000",dividends:"85000",rrspRoom:"35000",rrspContrib:"28000",tfsa:"6500",
+      holdco:true,coli:false,ipp:true,goals:["tax-savings","passive-income","retirement"],
+    },
+    stats:{verified:71400,pending:287000,forecast:88,dataScore:71},
+    badge:"Healthcare & dental",
+  },
+};
+
+// Switch profile — reloads all demo data for new industry
+function switchProfile(id){
+  if(!PROFILES[id])return;
+  const p=PROFILES[id];
+  S.activeProfile=id;
+  S.form=Object.assign({},S.form,p.form);
+  render();
+}
+
+// ── DENTAL-SPECIFIC GRANT OVERRIDES ──────────────────────────────────────────
+// Dental PCs have different grant eligibility — primarily technology innovation,
+// healthcare infrastructure, and workforce training programs
+const DENTAL_GRANTS = [
+  {id:"irap-dental",name:"NRC IRAP — Practice Technology Innovation",
+   amount:150000,type:"Non-repayable grant",match:"85%",
+   deadline:"Rolling intake",status:"eligible",probability:62,
+   desc:"IRAP funds development of proprietary clinical technology, patient management systems, and digital diagnostics. A dental practice building custom scheduling AI or interoperability tools qualifies — exactly what was funded for a Vancouver dental software company in Dec 2024 ($200K).",
+   requirements:["Incorporated Canadian business","R&D in technology layer","ITA assessment required"],
+   fit:{construction:2,professional:5,tech:5,manufacturing:4,retail:1,healthcare:5}},
+  {id:"bc-health-innovation",name:"BC Health Innovation Fund",
+   amount:75000,type:"Non-repayable grant",match:"50%",
+   deadline:"Quarterly intake",status:"eligible",probability:58,
+   desc:"BC Ministry of Health innovation funding for primary care technology, digital patient engagement, and clinic efficiency projects. Dental practices adopting electronic health records integration or tele-dentistry platforms qualify.",
+   requirements:["BC-registered practice","Innovation in patient care delivery","50% project cost match"],
+   fit:{construction:0,professional:2,tech:2,manufacturing:0,retail:0,healthcare:5}},
+  {id:"sred-dental",name:"SR&ED — Clinical Technology R&D",
+   amount:89600,type:"35% refundable tax credit",match:"n/a",
+   deadline:"18 months post fiscal year-end",status:"eligible",probability:74,
+   desc:"Budget 2025 doubled the CCPC SR&ED expenditure limit to $6M. A dental PC developing custom diagnostic software, AI-assisted treatment planning tools, or proprietary practice management systems qualifies. Professional corporations with 90%+ service income must carefully document the R&D activities separately from clinical service delivery.",
+   requirements:["R&D must be technology layer","Documentation required contemporaneously","CRA pre-claim approval available from April 2026"],
+   fit:{construction:3,professional:4,tech:5,manufacturing:5,retail:1,healthcare:4}},
+  {id:"csbfp-dental",name:"Canada Small Business Financing Program",
+   amount:300000,type:"Government-backed loan",match:"Prime+3%",
+   deadline:"Apply through any chartered bank",status:"eligible",probability:76,
+   desc:"CSBFP loans for equipment, leasehold improvements, and intangible assets. Dental equipment (chairs, CBCT scanners, CAD/CAM mills), clinic buildout, and practice management software all qualify. 85% government guarantee reduces bank risk — approval rate significantly higher than conventional commercial loans.",
+   requirements:["For-profit business","Equipment or leasehold purpose","Annual revenue under $10M"],
+   fit:{construction:5,professional:5,tech:4,manufacturing:5,retail:5,healthcare:5}},
+  {id:"bc-etg-dental",name:"BC Employer Training Grant",
+   amount:24000,type:"Wage subsidy — 60–80%",match:"60-80%",
+   deadline:"Rolling intake",status:"eligible",probability:81,
+   desc:"BC ETG covers 60–80% of training costs for dental team upskilling — digital radiography certification, CBCT training, sedation certification, new software onboarding. Each staff member is eligible for up to $10,000 per year. With 6 staff, potential recovery is $24,000–$48,000 annually.",
+   requirements:["BC employer","Eligible training programs","Must be registered employer with BCEID"],
+   fit:{construction:4,professional:5,tech:4,manufacturing:4,retail:4,healthcare:5}},
+  {id:"workbc-dental",name:"WorkBC Employer Supports",
+   amount:16320,type:"Wage subsidy — 85% for 24 weeks",match:"85%",
+   deadline:"Apply before new hire starts",status:"eligible",probability:83,
+   desc:"WorkBC covers 85% of wages for 24 weeks for new dental team members — dental assistants, hygienists in training, or admin staff. At $20/hour, a new dental assistant hire recovers $16,320 in the first 6 months. Must apply before the hire starts.",
+   requirements:["Apply before hire","Position qualifies as on-the-job training","BCEID account required"],
+   fit:{construction:4,professional:5,tech:3,manufacturing:4,retail:4,healthcare:5}},
+];
+
+// ── DENTAL-SPECIFIC IOS DECISIONS ────────────────────────────────────────────
+const DENTAL_DECISIONS = [
+  {id:"dd001",date:"2026-04-20",module:"TaxReady",category:"Tax optimisation",
+   title:"Salary adjusted to $120K — passive income clawback partially mitigated",
+   context:"Westside Dental PC generated $67K passive income in 2025 — above $50K threshold. Each additional $1 of passive income above $50K reduces SBD by $5. At $67K, SBD reduced by $85K. Refundable taxes apply under RDTOH.",
+   recommendation:"Increase salary to $120K to reduce corporate retained earnings accumulating as passive. Combined saving: $12,800/year vs previous $85K salary structure. IPP contribution of $28K also recommended.",
+   status:"Implemented",outcome:"Verified",actualSaving:12800,verified:true,
+   advisorNote:"T4 issued at $120K. IPP contribution filed. Passive income plan reviewed with accountant. RDTOH balance $31,200 — eligible dividend strategy scheduled for Q4.",
+   craRelevant:true,tags:["salary","passive income","SBD clawback","IPP","RDTOH"],module_icon:"◉"},
+  {id:"dd002",date:"2026-03-15",module:"GrantsReady",category:"Government funding",
+   title:"SR&ED claim filed — patient scheduling AI development qualifies",
+   context:"Westside Dental developed a custom AI-assisted appointment scheduling system integrated with their DPMS. 340 hours of eligible R&D work documented in 2025.",
+   recommendation:"File SR&ED claim for $256,000 in eligible labour costs. At 35% CCPC rate: $89,600 refundable credit.",
+   status:"Implemented",outcome:"Claim filed — assessment pending",actualSaving:null,verified:false,
+   advisorNote:"SR&ED consultant engaged. Contemporaneous documentation reviewed — strong position. CRA pre-claim approval process (new April 2026) used for technical validation.",
+   craRelevant:true,tags:["SR&ED","R&D","AI","dental software","refundable credit"],module_icon:"🏛️"},
+  {id:"dd003",date:"2026-02-28",module:"MultiCo",category:"Corporate structure",
+   title:"Management company structure reviewed — services agreement updated",
+   context:"Westside Dental PC provides clinical services. Westside Dental Management Ltd. owns equipment and provides management services. Services agreement was 4 years old and underpriced — CRA reasonableness risk.",
+   recommendation:"Update management fee to $78,000/year reflecting current market rates for equipment lease + admin services. File updated services agreement.",
+   status:"Implemented",outcome:"Verified — transfer pricing risk eliminated",actualSaving:8400,verified:true,
+   advisorNote:"Services agreement updated March 1. Transfer pricing documentation completed. CRA audit risk reduced from HIGH to LOW.",
+   craRelevant:true,tags:["management company","transfer pricing","services agreement","MultiCo"],module_icon:"🏢"},
+  {id:"dd004",date:"2026-01-20",module:"TaxReady",category:"Tax optimisation",
+   title:"IPP established — $28,000 annual contribution replaces RRSP",
+   context:"Dr. Chen age 48. Individual Pension Plan allows significantly higher contributions than RRSP for professionals over 40. IPP contribution $28,000 vs RRSP limit $35,000 — but IPP is fully corporate-deductible.",
+   recommendation:"Establish IPP. Annual contribution $28,000 deductible at corporate level. At 12.2% SBD rate, net cost to corporation is $24,584 — equivalent to RRSP at 35% personal rate.",
+   status:"Implemented",outcome:"IPP registered. First contribution made.",actualSaving:14200,verified:true,
+   advisorNote:"IPP registered with CRA. Actuary engaged for annual actuarial valuation. Past service room of $34,000 available — filing in progress.",
+   craRelevant:true,tags:["IPP","pension","retirement","corporate deduction"],module_icon:"◉"},
+  {id:"dd005",date:"2025-12-10",module:"GrantsReady",category:"Government funding",
+   title:"WorkBC approved — new dental hygienist hire subsidised",
+   context:"New RDH position at $68,000/year. WorkBC covers 85% of wages for 24 weeks.",
+   recommendation:"Apply to WorkBC before hire date. Projected recovery: $16,320.",
+   status:"Implemented",outcome:"$16,320 received — subsidy period complete",actualSaving:16320,verified:true,
+   advisorNote:"WorkBC referral provided stronger candidate pool. Full subsidy received. Next eligible hire: Q3 2026.",
+   craRelevant:false,tags:["WorkBC","hiring","hygienist","wage subsidy"],module_icon:"🏛️"},
+  {id:"dd006",date:"2025-11-05",module:"CashFlow",category:"Cash management",
+   title:"Insurance receivables lag identified — 47-day average delay",
+   context:"MSP and extended health reimbursements averaging 47 days from billing. Creates predictable cash gap in months 2 and 5 of each quarter.",
+   recommendation:"Set CashFlow floor to $35,000 (2× payroll cycle). Connect benefits billing system to cash forecast. Enable 45-day alert.",
+   status:"Implemented",outcome:"3 cash gap events predicted and managed in advance since implementation",actualSaving:0,verified:true,
+   advisorNote:"Insurance receivables lag is the #1 cash flow challenge for dental practices. Alert fired correctly in Feb and Apr 2026.",
+   craRelevant:false,tags:["cash flow","insurance receivables","MSP","payroll"],module_icon:"◈"},
+];
+
+// ── DENTAL REGULATORY CALENDAR ────────────────────────────────────────────────
+const DENTAL_CALENDAR = [
+  {date:"2026-06-30",title:"Management fee invoice — Q2 to Westside Dental Management",urgency:"UPCOMING",
+   detail:"Quarterly management fee of $19,500 must be invoiced and paid to maintain the services agreement. CRA requires consistent execution to support the transfer pricing position.",
+   action:"Issue invoice from Westside Dental Management Ltd. to Westside Dental PC",daysAway:35,cra:false},
+  {date:"2026-07-31",title:"GST/HST Q2 remittance — taxable dental services only",urgency:"UPCOMING",
+   detail:"Dental practices have mixed GST/HST status. Medically necessary services are exempt. Cosmetic procedures (teeth whitening, veneers for aesthetics) are taxable at 5% federal + 7% BC PST. Only taxable revenue is included in net tax owing.",
+   action:"Reconcile taxable vs exempt services in InvoiceVault before July 31 filing",daysAway:66,cra:true},
+  {date:"2026-09-01",title:"RDTOH refund — eligible dividend payment to Dr. Chen",urgency:"PLANNED",
+   detail:"RDTOH balance $31,200. Trigger refund by paying $81,300 in eligible dividends to Dr. Chen. Refund rate: $38.33 per eligible dividend dollar. File T2054 before payment.",
+   action:"Coordinate with accountant — file T2054, declare eligible dividend, receive RDTOH refund",daysAway:98,cra:true},
+  {date:"2026-12-31",title:"Year-end salary and IPP decision — Dr. Chen",urgency:"PLANNED",
+   detail:"Final date to adjust salary for FY2026 and make IPP contribution. IPP contribution must align with actuarial valuation. Passive income projection must be reviewed — if Q4 investments push passive above $50K again, additional salary extraction may be warranted.",
+   action:"Book year-end review with Elevare Global advisor by November 1",daysAway:219,cra:true},
+  {date:"2027-01-31",title:"GST/HST Q4 remittance",urgency:"PLANNED",
+   detail:"Largest quarter. Estimate based on Q4 cosmetic procedure volume. Set aside funds in separate account.",
+   action:"Reconcile in InvoiceVault by January 25",daysAway:250,cra:true},
+  {date:"2027-06-15",title:"SR&ED claim — 18-month deadline for FY2025",urgency:"PLANNED",
+   detail:"SR&ED claim for 340 hours of AI scheduling R&D ($89,600 credit) must be filed within 18 months of fiscal year-end Dec 31, 2025 = June 30, 2027. Pre-claim approval already received.",
+   action:"SR&ED consultant to file T661 by June 2027. Documentation already complete.",daysAway:385,cra:true},
+];
+
+// Active getters — return correct data based on active profile
+function activeGrants(profile){
+  if((profile||S.form.industry)==="healthcare")return DENTAL_GRANTS;
+  return null; // falls through to standard grMatchedGrants
+}
+function activeDecisions(){
+  return S.activeProfile==="dental"?DENTAL_DECISIONS:IOS_DECISIONS;
+}
+function activeCalendar(){
+  return S.activeProfile==="dental"?DENTAL_CALENDAR:IOS_REG_CALENDAR;
+}
 
 function setState(p){
   if(typeof p==="function"){p(S);}else{Object.assign(S,p);}
@@ -1424,9 +1588,19 @@ function renderTaxready(){
   const t=computeTax(inc,pass);
   const recs=taxRecs();
   const sal=S.salarySlider,div=S.divSlider;
+  const isProfCorp=(c.industry==="healthcare"||c.industry==="professional"||c.industry==="legal");
+  const passClawback=Math.max(0,Math.round((pass-50000)*5));
+  const profBanner=isProfCorp?`<div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:9px">
+    <span style="font-size:15px;flex-shrink:0">◉</span>
+    <div>
+      <div style="font-size:12.5px;font-weight:600;color:#C4B5FD;margin-bottom:3px">Professional Corporation — specified corporate income rules apply</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6">Doctors, dentists, and lawyers cannot split the SBD across associated corporations via T2SCH23A the same way a product/services CCPC can. Your SBD is based on your individual professional corporation's qualifying income only.${passClawback>0?` <strong style="color:#FCA5A5">Passive income $${pass.toLocaleString()} reduces your SBD by $${passClawback.toLocaleString()} this year — see IPP strategy below.</strong>`:` Passive income $${fmt(pass)} is within the safe range.`}</div>
+    </div>
+  </div>`:"";
 
   if(S.taxTab==="overview")return`<div class="slide">
     <div style="margin-bottom:16px"><h1 style="font-size:21px;font-weight:700;color:${C.ink}">Tax Position Overview</h1><p style="font-size:13px;color:${C.slate};margin-top:3px">${c.businessName} · ${c.province} CCPC · Fiscal year ends ${c.fiscalEnd} 31 · 68 days remaining</p></div>
+    ${profBanner}
     <div class="g4" style="margin-bottom:16px">
       ${kpiCard("Corporate Income YTD",fmt(inc),"Active business income",C.teal,true)}
       ${kpiCard("Est. Corporate Tax",fmt(t.tax),`Effective rate ${pct(t.tax/inc)}`,t.tax/inc>0.15?C.amber:C.green)}
@@ -2213,31 +2387,46 @@ function renderCashflow(){
 function renderHome(){
   const html=_baseRenderHomeImpl();
 
-  // ─── SYSTEM-OF-RECORD HEADER ───────────────────────────────────────────────
-  const totalVerified=IOS_DECISIONS.filter(d=>d.verified&&d.actualSaving).reduce((a,d)=>a+d.actualSaving,0);
-  const urgent=IOS_CALENDAR.filter(e=>e.urgency==="URGENT");
-  const pendingDecisions=IOS_DECISIONS.filter(d=>d.status==="In progress").length;
-  const dataScore=IOS_PROFILE_DATA.snapshot.dataScore;
-  const implRate=Math.round(Object.values(_iosOutcomesForRender.byModule).reduce((a,m)=>a+m.implemented,0)/Object.values(_iosOutcomesForRender.byModule).reduce((a,m)=>a+m.recs,0)*100);
+  // ─── PROFILE SWITCHER + SYSTEM-OF-RECORD HEADER ──────────────────────────
+  const ap=S.activeProfile||"construction";
+  const pc=PROFILES[ap];
+  const activeD=activeDecisions();
+  const activeCal=activeCalendar();
+  const totalVerified=activeD.filter(d=>d.verified&&d.actualSaving).reduce((a,d)=>a+d.actualSaving,0);
+  const urgent=activeCal.filter(e=>e.urgency==="URGENT");
+  const pendingDecisions=activeD.filter(d=>d.status==="In progress").length;
+  const dataScore=pc.stats.dataScore;
+  const implRate=Math.round(activeD.filter(d=>d.status==="Implemented").length/activeD.length*100);
 
   const sorHeader=`
+  <!-- PROFILE SWITCHER -->
+  <div style="background:rgba(26,58,92,.4);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:7px">
+      <span style="font-size:11px;color:rgba(255,255,255,.4);font-family:'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase">Demo profile</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${Object.entries(PROFILES).map(([id,p])=>`<button onclick="switchProfile('${id}')" style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:1px solid ${ap===id?p.color:'rgba(255,255,255,.12)'};background:${ap===id?p.color+'22':'transparent'};color:${ap===id?p.color:'rgba(255,255,255,.45)'};font-size:11.5px;font-weight:${ap===id?'600':'400'};cursor:pointer;font-family:sans-serif;transition:all .15s">${p.icon} ${p.label.split(' ').slice(0,2).join(' ')}${ap===id?' ✓':''}</button>`).join('')}
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.3);font-family:'DM Mono',monospace">${pc.tag} · ${S.form.province}</div>
+  </div>
+
   <!-- SYSTEM OF RECORD HEADER — redesigned for AI era -->
   <div style="background:${C.navyMid};border-radius:14px;padding:16px 20px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:13px;font-weight:600;color:white">Pinnacle Construction Inc. — Financial Intelligence Summary</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Living Profile v${IOS_PROFILE_DATA.version} · Last updated ${IOS_PROFILE_DATA.lastUpdated} · 5 data sources connected</div>
+        <div style="font-size:13px;font-weight:600;color:white">${pc.label} — Financial Intelligence Summary</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">${pc.badge} · ${S.form.province} CCPC · ${S.form.employees} employees · Revenue $${(+S.form.revenue/1000).toFixed(0)}K</div>
       </div>
       <button onclick="setState({screen:'intelligence',iosTab:'iosoutcomes'})" style="background:${C.teal};color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600">View outcomes →</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
       ${[
         {l:"Verified savings",v:"$"+totalVerified.toLocaleString(),s:"This year",c:"#A7F3D0",onclick:"intelligence",tab:"iosoutcomes"},
-        {l:"Pending funding",v:"$412,000",s:"IRAP + CSBFP",c:"#FCD34D",onclick:"intelligence",tab:"iosoutcomes"},
-        {l:"Urgent deadlines",v:urgent.length,s:urgent.length>0?(urgent[0].title||urgent[0].event||"").substring(0,28)+"…":"All clear",c:urgent.length>0?"#FCA5A5":"#A7F3D0",onclick:"intelligence",tab:"ioscal"},
+        {l:"Pending funding",v:"$"+pc.stats.pending.toLocaleString(),s:ap==="dental"?"SR&ED + WorkBC + CSBFP":"IRAP + CSBFP",c:"#FCD34D",onclick:"intelligence",tab:"iosoutcomes"},
+        {l:"Urgent deadlines",v:urgent.length,s:urgent.length>0?(urgent[0].title||"").substring(0,28)+"…":"All clear",c:urgent.length>0?"#FCA5A5":"#A7F3D0",onclick:"intelligence",tab:"ioscal"},
         {l:"Decisions in progress",v:pendingDecisions,s:"Awaiting implementation",c:"#FCD34D",onclick:"intelligence",tab:"iosdecision"},
-        {l:"Data completeness",v:dataScore+"/100",s:"5 of 6 sources connected",c:dataScore>=75?"#A7F3D0":"#FCD34D",onclick:"datagaps",tab:"dgdash"},
-        {l:"Recommendation rate",v:implRate+"%",s:"Of all recommendations acted on",c:"#A7F3D0",onclick:"intelligence",tab:"iosoutcomes"},
+        {l:"Data completeness",v:dataScore+"/100",s:"Data sources connected",c:dataScore>=75?"#A7F3D0":"#FCD34D",onclick:"datagaps",tab:"dgdash"},
+        {l:"Implementation rate",v:implRate+"%",s:"Of all recommendations",c:"#A7F3D0",onclick:"intelligence",tab:"iosoutcomes"},
       ].map(m=>`<div onclick="setState({screen:'${m.onclick}',${m.onclick==="intelligence"?"iosTab":"dgTab"}:'${m.tab}'})" style="background:rgba(255,255,255,.06);border-radius:8px;padding:10px 12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">
         <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:3px">${m.l}</div>
         <div style="font-size:18px;font-weight:700;color:${m.c}">${m.v}</div>
@@ -2871,6 +3060,11 @@ function grFitScore(grant,profile){
 }
 
 function grMatchedGrants(profile){
+  // Use dental-specific grants for healthcare/dental profile
+  if((profile||{}).industry==="healthcare"||S.form.industry==="healthcare"){
+    return DENTAL_GRANTS.map(g=>({...g,score:g.fit.healthcare||3,realistic:Math.round(g.amount*0.7)}))
+      .sort((a,b)=>b.score-a.score);
+  }
   return GRANTS_DB.map(g=>({...g,score:grFitScore(g,profile)}))
     .filter(g=>g.score>=3)
     .sort((a,b)=>b.score-a.score||b.realistic-a.realistic);
@@ -6233,6 +6427,9 @@ const IOS_PROFILE_DATA = { version:"v8", lastUpdated:"2026-05-01", snapshot:{ da
 
 function renderIntelligenceOS(){
   const tab = S.iosTab;
+  const IOS_D = activeDecisions();
+  const IOS_CAL = activeCalendar();
+  const activeLabel = (S.activeProfile==="dental") ? "Westside Dental PC" : "Pinnacle Construction Inc.";
   const C2 = C;
 
   // Shared helpers
@@ -6250,9 +6447,9 @@ function renderIntelligenceOS(){
 
   // ── TAB 1: DECISION LOG ────────────────────────────────────────────────────
   if(tab==="iosdecision"){
-    const totalSaved=IOS_DECISIONS.filter(d=>d.verified&&d.actualSaving).reduce((a,d)=>a+d.actualSaving,0);
-    const implemented=IOS_DECISIONS.filter(d=>d.status==="Implemented").length;
-    const inProgress=IOS_DECISIONS.filter(d=>d.status==="In progress").length;
+    const totalSaved=IOS_D.filter(d=>d.verified&&d.actualSaving).reduce((a,d)=>a+d.actualSaving,0);
+    const implemented=IOS_D.filter(d=>d.status==="Implemented").length;
+    const inProgress=IOS_D.filter(d=>d.status==="In progress").length;
     const statusColor=s=>s==="Implemented"?C2.green:s==="In progress"?C2.amber:s==="Declined"?C2.red:C2.slate;
 
     return`<div class="slide">
@@ -6274,10 +6471,10 @@ function renderIntelligenceOS(){
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           ${[
-            {l:"Decisions logged",v:IOS_DECISIONS.length,s:"Across 4 modules",c:"white"},
+            {l:"Decisions logged",v:IOS_D.length,s:"Across 4 modules",c:"white"},
             {l:"Implemented",v:implemented,s:"Actions taken",c:C2.tealLt},
             {l:"In progress",v:inProgress,s:"Pending outcome",c:"#FCD34D"},
-            {l:"Advisor notes",v:IOS_DECISIONS.filter(d=>d.advisorNote).length,s:"CPA + Elevare input",c:"#C4B5FD"},
+            {l:"Advisor notes",v:IOS_D.filter(d=>d.advisorNote).length,s:"CPA + Elevare input",c:"#C4B5FD"},
           ].map(m=>`<div style="background:rgba(255,255,255,.08);border-radius:7px;padding:8px 10px">
             <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:2px">${m.l}</div>
             <div style="font-size:17px;font-weight:700;color:${m.c}">${m.v}</div>
@@ -6286,7 +6483,7 @@ function renderIntelligenceOS(){
         </div>
       </div>
 
-      ${IOS_DECISIONS.map(d=>{
+      ${IOS_D.map(d=>{
         const mc={TaxReady:C2.purple,GrantsReady:C2.green,CashFlow:C2.teal,MultiCo:C2.navyMid}[d.module]||C2.slate;
         const sc=statusColor(d.status);
         return`<div style="background:white;border:1px solid ${C2.border};border-radius:11px;overflow:hidden;margin-bottom:10px">
@@ -6346,7 +6543,7 @@ function renderIntelligenceOS(){
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
           ${[
             {l:"Total verified savings",v:"$"+tv.toLocaleString(),s:"Across all modules",c:C2.tealLt},
-            {l:"Decisions implemented",v:IOS_DECISIONS.filter(d=>d.status==="Implemented").length+"/"+IOS_DECISIONS.length,s:"Implementation rate: "+Math.round(IOS_DECISIONS.filter(d=>d.status==="Implemented").length/IOS_DECISIONS.length*100)+"%",c:"white"},
+            {l:"Decisions implemented",v:IOS_D.filter(d=>d.status==="Implemented").length+"/"+IOS_D.length,s:"Implementation rate: "+Math.round(IOS_D.filter(d=>d.status==="Implemented").length/IOS_D.length*100)+"%",c:"white"},
             {l:"CRA filings on time",v:"12/12",s:"No late penalties since connecting",c:"#A7F3D0"},
             {l:"Cash crises avoided",v:"2",s:"Alerts fired and actioned",c:"#FCD34D"},
             {l:"Grants in pipeline",v:"$412K",s:"CSBFP + IRAP pending",c:"#C4B5FD"},
@@ -6432,9 +6629,9 @@ function renderIntelligenceOS(){
 
   // ── TAB 3: REGULATORY CALENDAR ────────────────────────────────────────────
   if(tab==="ioscal"){
-    const urgent=IOS_REG_CALENDAR.filter(e=>e.urgency==="URGENT");
-    const upcoming=IOS_REG_CALENDAR.filter(e=>e.urgency==="UPCOMING");
-    const planned=IOS_REG_CALENDAR.filter(e=>e.urgency==="PLANNED");
+    const urgent=IOS_CAL.filter(e=>e.urgency==="URGENT");
+    const upcoming=IOS_CAL.filter(e=>e.urgency==="UPCOMING");
+    const planned=IOS_CAL.filter(e=>e.urgency==="PLANNED");
 
     const evtCard=(e)=>{
       const uc=urgColor(e.urgency);
@@ -6475,7 +6672,7 @@ function renderIntelligenceOS(){
           {l:"Urgent",v:urgent.length.toString(),s:"Within 30 days",a:C2.red},
           {l:"Upcoming",v:upcoming.length.toString(),s:"30–60 days",a:C2.amber},
           {l:"Planned",v:planned.length.toString(),s:"60+ days",a:C2.teal},
-          {l:"CRA filings",v:IOS_REG_CALENDAR.filter(e=>e.craFiling).length.toString(),s:"This year",a:C2.navyMid},
+          {l:"CRA filings",v:IOS_CAL.filter(e=>e.craFiling).length.toString(),s:"This year",a:C2.navyMid},
           {l:"Next deadline",v:urgent[0]?urgent[0].daysAway+" days":"None urgent",s:urgent[0]?urgent[0].event:"All clear",a:urgent[0]?C2.red:C2.green},
         ].map(m=>iosKpi(m.l,m.v,m.s,m.a)).join("")}
       </div>
