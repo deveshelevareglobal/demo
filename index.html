@@ -289,7 +289,18 @@ const DENTAL_CALENDAR = [
 
 // Active getters — return correct data based on active profile
 function activeGrants(profile){
-  if((profile||S.form.industry)==="healthcare")return DENTAL_GRANTS;
+  const ind=(profile||{}).industry||S.form.industry;
+  if(ind==="healthcare"){
+    return DENTAL_GRANTS.map(g=>({
+      ...g,
+      score:g.fit.healthcare||3,
+      realistic:Math.round(g.amount*0.7),
+      level:"Federal",
+      effort:"Medium — 20–40 hours",
+      stacksWith:[],
+      province:"All",
+    }));
+  }
   return null; // falls through to standard grMatchedGrants
 }
 function activeDecisions(){
@@ -2465,7 +2476,7 @@ function renderHome(){
   const grStrip=`<div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🏛️</span><div><div style="font-size:13px;font-weight:600;color:${C.ink}">GrantsReady — ${matched.length} programs matched to your profile</div><div style="font-size:12px;color:${C.slate};margin-top:2px">Estimated available: <strong style="color:${C.teal}">${fmt(total)}</strong> · Top match: <strong>${matched[0]?.name||"—"}</strong> · CanExport deadline: <strong style="color:${C.red}">May 29</strong></div></div></div><button onclick="setState({screen:'grants',grTab:'grdash'})" style="background:${C.teal};color:white;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:600">View grants →</button></div>`;
 
   // Insert SOR header + all strips
-  const advisorMark=`style="background:${C.navyMid};border-radius:12px;padding:16px 20px;display:flex`;
+  const advisorMark=`background:#1A3A5C;border-radius:12px;padding:16px 20px;display:flex`;
   const allStrips=ccStrip+ivStrip+grStrip;
   if(html.includes(advisorMark)){
     return html.replace(`<div style="${advisorMark}`,sorHeader+allStrips+`<div style="${advisorMark}`);
@@ -3061,10 +3072,8 @@ function grFitScore(grant,profile){
 
 function grMatchedGrants(profile){
   // Use dental-specific grants for healthcare/dental profile
-  if((profile||{}).industry==="healthcare"||S.form.industry==="healthcare"){
-    return DENTAL_GRANTS.map(g=>({...g,score:g.fit.healthcare||3,realistic:Math.round(g.amount*0.7)}))
-      .sort((a,b)=>b.score-a.score);
-  }
+  const dental=activeGrants(profile);
+  if(dental) return dental.sort((a,b)=>b.score-a.score);
   return GRANTS_DB.map(g=>({...g,score:grFitScore(g,profile)}))
     .filter(g=>g.score>=3)
     .sort((a,b)=>b.score-a.score||b.realistic-a.realistic);
