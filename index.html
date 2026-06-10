@@ -31,8 +31,9 @@ button{font-family:'DM Sans',sans-serif;cursor:pointer}
 .logo-mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#0E8A7D,#12B3A3);display:flex;align-items:center;justify-content:center;font-size:14px;color:white}
 .logo-text{font-size:15px;font-weight:700;color:white;letter-spacing:-.02em}
 .logo-sub{font-size:15px;font-weight:300;color:#12B3A3}
-.nav-tabs{display:flex;gap:2px;flex:1;justify-content:center}
-.nav-tab{background:none;border:none;color:rgba(255,255,255,.5);padding:7px 14px;border-radius:6px;font-size:12.5px;font-weight:400;transition:all .15s}
+.nav-tabs{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding-bottom:1px}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{background:none;border:none;color:rgba(255,255,255,.5);padding:7px 12px;border-radius:6px;font-size:12px;font-weight:400;transition:all .15s;white-space:nowrap;flex-shrink:0;cursor:pointer}
 .nav-tab.active{background:rgba(14,138,125,.22);color:#12B3A3;font-weight:600}
 .nav-tab:hover:not(.active){background:rgba(255,255,255,.06);color:rgba(255,255,255,.75)}
 .nav-right{display:flex;align-items:center;gap:10px}
@@ -1954,14 +1955,15 @@ const NAV_SCREENS=[
   {id:"onboard",label:"Onboard",sub:null},
   {id:"home",label:"Home"},
   {id:"cashflow",label:"CashFlow",subs:[["dashboard","Dashboard"],["alerts","Alerts"],["receivables","Receivables"],["scenarios","Scenarios"],["cards","Cards"]]},
-  {id:"taxready",label:"TaxReady",subs:[["overview","Overview"],["optimizer","Optimizer"],["alerts","Alerts"],["yearend","Year-end"]]},
+  {id:"taxready",label:"TaxReady",subs:[["overview","Overview"],["optimizer","Optimizer"],["alerts","Tax Alerts"],["yearend","Year-end"]]},
   {id:"invoice",label:"InvoiceVault",subs:[["ivdash","Dashboard"],["ivinv","Invoices"],["ivbills","Bills"],["ivreceipts","Receipts"],["ivgst","GST/HST"],["ivcreate","+ Create"]]},
   {id:"grants",label:"GrantsReady",subs:[["grdash","Dashboard"],["greligible","My Matches"],["grstack","Stack Planner"],["grtracker","Tracker"],["grcalendar","Deadlines"]]},
-  {id:"multico",label:"MultiCo",subs:[["mcdash","Dashboard"],["mcsbd","SBD Planner"],["mcpassive","Passive Income"],["mcholdco","HoldCo Strategy"],["mcgrants","Grant Stacking"],["mcadvisor","Advisor View"]]},
-  {id:"datagaps",label:"DataGaps",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgopenbanking","Open Banking"],["dgplan","Action Plan"],["dgroi","ROI Calculator"]]},
-  {id:"profitpilot",label:"ProfitPilot",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["pppricing","Pricing Engine"],["ppclient","Client Profitability"],["ppcomp","Compensation"],["ppvendor","Vendor Audit"],["ppbenchmark","Industry Benchmarks"],["ppplan","Growth Plan"]]},
+  {id:"multico",label:"MultiCo",subs:[["mcdash","Dashboard"],["mcsbd","SBD Planner"],["mcpassive","Passive Income"],["mcholdco","HoldCo Strategy"]]},
+  {id:"datagaps",label:"DataGaps",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgroi","ROI Calculator"]]},
+  {id:"profitpilot",label:"ProfitPilot",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["ppvendor","Vendor Audit"],["ppbenchmark","Benchmarks"]]},
   {id:"planninghub",label:"PlanningHub",subs:[["phbuysell","Buy/Sell Agreement"],["phdebt","Debt & Repayment Risk"],["phparter","Partnership Impact"]]},
   {id:"intelligence",label:"Intelligence OS",subs:[["iosdecision","Decision Log"],["iosoutcomes","Outcomes Dashboard"],["ioscal","Regulatory Calendar"],["ioscra","CRA File"],["iosprofile","Living Profile"],["iosnetwork","Network Intel"]]},
+  {id:"cpaconnect",label:"CPA Connect",subs:[["cpaDash","Overview"],["cpaExport","Tax Package"],["cpaHistory","Export History"],["cpaPerms","Permissions"]]},
   {id:"mobile",label:"Mobile"},
   {id:"settings",label:"Settings",subs:[["profile","Profile"],["notifications","Notifications"],["integrations","Integrations"],["subscription","Subscription"],["advisor","Advisor"]]},
 ];
@@ -1973,8 +1975,11 @@ function renderNav(){
   const total=critCount+taxHigh;
 
   document.getElementById("main-tabs").innerHTML=NAV_SCREENS.map(n=>`
-    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')">${n.label}</button>
+    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')" ${n.id==="cpaconnect"&&S.screen!==n.id?`style="border:1px solid rgba(14,138,125,.3);color:rgba(14,138,125,.8)"`:""}>${n.id==="cpaconnect"?"⚡ "+n.label:n.label}</button>
   `).join("");
+  // Auto-scroll active tab into view
+  const activeBtn=document.querySelector(".nav-tab.active");
+  if(activeBtn)activeBtn.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
 
   document.getElementById("nav-right").innerHTML=`
     ${total>0?`<div class="alert-pill">${total} alerts</div>`:""}
@@ -1985,7 +1990,7 @@ function renderNav(){
   const subTabsEl=document.getElementById("sub-tabs");
   if(cur&&cur.subs&&S.screen!=="onboard"){
     subNav.style.display="block";
-    const subKey=S.screen==="cashflow"?"cashTab":S.screen==="taxready"?"taxTab":S.screen==="invoice"?"ivTab":S.screen==="grants"?"grTab":S.screen==="multico"?"mcTab":S.screen==="datagaps"?"dgTab":S.screen==="profitpilot"?"ppTab":S.screen==="planninghub"?"phTab":S.screen==="intelligence"?"iosTab":"settingsTab";
+    const subKey=S.screen==="cashflow"?"cashTab":S.screen==="taxready"?"taxTab":S.screen==="invoice"?"ivTab":S.screen==="grants"?"grTab":S.screen==="multico"?"mcTab":S.screen==="datagaps"?"dgTab":S.screen==="profitpilot"?"ppTab":S.screen==="planninghub"?"phTab":S.screen==="intelligence"?"iosTab":S.screen==="cpaconnect"?"cpaTab":"settingsTab";
     subTabsEl.innerHTML=cur.subs.map(([id,label])=>`
       <button class="sub-tab${S[subKey]===id?" active":""}" onclick="setState({${subKey}:'${id}'})">${label}</button>
     `).join("");
@@ -1995,7 +2000,7 @@ function renderNav(){
 }
 
 function navigateTo(id){
-  const defaults={cashflow:{cashTab:"dashboard"},taxready:{taxTab:"overview"},invoice:{ivTab:"ivdash"},grants:{grTab:"grdash"},multico:{mcTab:"mcdash"},datagaps:{dgTab:"dgdash"},profitpilot:{ppTab:"ppdash"},planninghub:{phTab:"phbuysell"},intelligence:{iosTab:"iosdecision"},settings:{settingsTab:"profile"},onboard:{onboardStep:"welcome",goals5Step:"goals",selectedTasks:[]}};
+  const defaults={cashflow:{cashTab:"dashboard"},taxready:{taxTab:"overview"},invoice:{ivTab:"ivdash"},grants:{grTab:"grdash"},multico:{mcTab:"mcdash"},datagaps:{dgTab:"dgdash"},profitpilot:{ppTab:"ppdash"},planninghub:{phTab:"phbuysell"},intelligence:{iosTab:"iosdecision"},cpaconnect:{cpaTab:"cpaDash"},settings:{settingsTab:"profile"},onboard:{onboardStep:"welcome",goals5Step:"goals",selectedTasks:[]}};
   setState(Object.assign({screen:id},defaults[id]||{}));
 }
 
@@ -2022,6 +2027,7 @@ function render(){
     profitpilot:renderProfitPilot,
     planninghub:renderPlanningHub,
     intelligence:renderIntelligenceOS,
+    cpaconnect:renderCPAConnect,
     advisor:renderAdvisor,
     mobile:renderMobilePreview,
     settings:renderSettings,
@@ -6940,6 +6946,571 @@ function renderIntelligenceOS(){
 
   return`<div class="slide"><p style="color:${C2.slate}">Select a tab.</p></div>`;
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CPA CONNECT — Tax Filing Connector
+// Exports CRA-ready data packages to TaxCycle, DT Max, Taxprep, Profile/Cantax
+// Data flow: Elevare → structured export → CPA imports into their T2 software
+// ══════════════════════════════════════════════════════════════════════════════
+
+S.cpaTab = "cpaDash";
+
+// ── CPA FIRM DATA ─────────────────────────────────────────────────────────────
+const CPA_FIRMS = [
+  {
+    id:"f001",name:"Davidson & Chen CPAs",contact:"Sarah Chen, CPA, CA",
+    email:"schen@davidsonchen.ca",phone:"(604) 555-0182",
+    software:"TaxCycle T2",access:"Full tax package",
+    clients:["Pinnacle Construction Ltd.","Westside Dental PC"],
+    lastExport:"2026-04-15",status:"Active",
+    permissions:["income_statement","balance_sheet","t4_data","gst_reconciliation",
+                 "sbd_calc","passive_income","rdtoh","cda_balance","installments"],
+  },
+  {
+    id:"f002",name:"Mehta & Associates",contact:"Raj Mehta, CPA, CGA",
+    email:"r.mehta@mehtaassoc.ca",phone:"(778) 555-0247",
+    software:"Profile T2",access:"Year-end summary only",
+    clients:["Pinnacle Construction Ltd."],
+    lastExport:"2026-02-28",status:"Active",
+    permissions:["income_statement","balance_sheet","t4_data"],
+  },
+];
+
+// ── EXPORT HISTORY ────────────────────────────────────────────────────────────
+const CPA_EXPORTS = [
+  {id:"e001",date:"2026-04-15",firm:"Davidson & Chen CPAs",
+   type:"Full T2 Package",software:"TaxCycle T2",
+   format:"JSON + XML",fields:23,period:"FY2025 (Jan 1 – Dec 31, 2025)",
+   status:"Delivered",downloadedBy:"Sarah Chen",downloadedAt:"2026-04-15 14:32"},
+  {id:"e002",date:"2026-03-01",firm:"Davidson & Chen CPAs",
+   type:"Q3 GST Reconciliation",software:"TaxCycle T2",
+   format:"CSV",fields:8,period:"Q3 2025",
+   status:"Delivered",downloadedBy:"Sarah Chen",downloadedAt:"2026-03-01 09:14"},
+  {id:"e003",date:"2026-02-28",firm:"Mehta & Associates",
+   type:"Year-End Summary",software:"Profile T2",
+   format:"JSON",fields:12,period:"FY2025",
+   status:"Delivered",downloadedBy:"R. Mehta",downloadedAt:"2026-03-02 11:05"},
+  {id:"e004",date:"2026-06-01",firm:"Davidson & Chen CPAs",
+   type:"Full T2 Package — FY2025 (final)",software:"TaxCycle T2",
+   format:"JSON + XML",fields:23,period:"FY2025 (Jan 1 – Dec 31, 2025)",
+   status:"Ready",downloadedBy:null,downloadedAt:null},
+];
+
+// ── PERMISSION GROUPS ─────────────────────────────────────────────────────────
+// Granular data fields with CPA-relevance labels
+// Each field maps to a specific T2 schedule or CRA form
+const PERMISSION_FIELDS = [
+  // Financial statements
+  {id:"income_statement",     label:"Income Statement",          schedule:"T2 S125",     group:"Financial Statements", required:true,
+   desc:"Total revenue, COGS, operating expenses, net income — populates Schedule 125 (Business Income)"},
+  {id:"balance_sheet",        label:"Balance Sheet",             schedule:"T2 S100",     group:"Financial Statements", required:true,
+   desc:"Assets, liabilities, retained earnings — populates Schedule 100 (Balance Sheet)"},
+  {id:"retained_earnings",    label:"Retained Earnings",         schedule:"T2 S3501",    group:"Financial Statements", required:false,
+   desc:"Opening and closing retained earnings — required for Schedule 3501 (Continuity of Retained Earnings)"},
+
+  // Tax calculations
+  {id:"sbd_calc",             label:"SBD Calculation",           schedule:"T2 S7",       group:"Corporate Tax", required:true,
+   desc:"Active business income, passive income, SBD rate and amount — Schedule 7 (Aggregate Investment Income)"},
+  {id:"passive_income",       label:"Passive Income Detail",     schedule:"T2 S7",       group:"Corporate Tax", required:true,
+   desc:"Investment income, rental income, interest — required for SBD reduction calculation ($5 per $1 over $50K)"},
+  {id:"rdtoh",                label:"RDTOH Balance",             schedule:"T2 S3",       group:"Corporate Tax", required:false,
+   desc:"Refundable Dividend Tax on Hand — Schedule 3 (Dividends Received, Taxable Dividends Paid)"},
+  {id:"cda_balance",          label:"Capital Dividend Account",  schedule:"T2 S89",      group:"Corporate Tax", required:false,
+   desc:"CDA balance for capital dividend elections under s.83(2) — Schedule 89"},
+  {id:"installments",         label:"Tax Installments Paid",     schedule:"T2 Line 840", group:"Corporate Tax", required:true,
+   desc:"Quarterly CRA instalments paid — reconciles with CRA My Business Account data"},
+  {id:"association_data",     label:"Associated Corporation Data",schedule:"T2SCH23A",   group:"Corporate Tax", required:false,
+   desc:"SBD allocation agreement between associated corporations — mandatory for multi-entity CCPCs from 2026"},
+
+  // Payroll & T4
+  {id:"t4_data",              label:"Payroll / T4 Summary",      schedule:"T4 Summary",  group:"Payroll", required:true,
+   desc:"Total T4 employment income, CPP, EI, income tax deducted — reconciles with T4 slips filed"},
+  {id:"cpp_ei",               label:"CPP & EI Remittances",      schedule:"PD7A",        group:"Payroll", required:false,
+   desc:"CPP employer/employee contributions and EI premiums — required for payroll reconciliation"},
+
+  // GST/HST
+  {id:"gst_reconciliation",   label:"GST/HST Reconciliation",    schedule:"GST/HST 34", group:"GST/HST", required:true,
+   desc:"Net tax collected vs. ITC claimed by quarter — reconciles with GST/HST return filed"},
+  {id:"itc_detail",           label:"ITC Detail",                schedule:"GST/HST 34", group:"GST/HST", required:false,
+   desc:"Itemised input tax credits by category — supports CRA audit defence on ITC claims"},
+
+  // Capital
+  {id:"cca_schedule",         label:"Capital Cost Allowance",    schedule:"T2 S8",       group:"Capital", required:false,
+   desc:"CCA by class (Class 1 buildings, Class 8 equipment, Class 10 vehicles, Class 14.1 intangibles) — Schedule 8"},
+  {id:"disposal_of_assets",   label:"Asset Disposals",           schedule:"T2 S6",       group:"Capital", required:false,
+   desc:"Capital gains and recaptured depreciation on asset sales — Schedule 6"},
+
+  // Dividends
+  {id:"dividends_paid",       label:"Dividends Paid",            schedule:"T2 S3",       group:"Dividends", required:false,
+   desc:"Eligible and non-eligible dividends declared and paid — Schedule 3. Required to trigger RDTOH refund."},
+  {id:"shareholder_loans",    label:"Shareholder Loans",         schedule:"T2 S11",      group:"Dividends", required:false,
+   desc:"Loans to shareholders and related parties — CRA scrutinises these under s.15(2)"},
+];
+
+// ── TAX SOFTWARE CONFIG ────────────────────────────────────────────────────────
+// Each software accepts specific import formats
+const TAX_SOFTWARE = [
+  {id:"taxcycle",    name:"TaxCycle T2",    vendor:"Xero-integrated",
+   formats:["JSON","XML","CSV"],   icon:"◈",
+   importMethod:"File → Import → Accountant Data Package (.json)",
+   fieldMapping:"Auto-maps to Schedule line numbers via field IDs",
+   notes:"TaxCycle is the most widely used Canadian professional T2 software. Supports XML for slip filing and JSON import for financial data. Export includes Schedule 125, 100, 7, 3 field mappings.",
+   marketShare:"~35% of Canadian CPA firms",
+  },
+  {id:"dtmax",       name:"DT Max T2",      vendor:"Thomson Reuters",
+   formats:["XML","CSV"],          icon:"◉",
+   importMethod:"Client → Import → External Data → XML",
+   fieldMapping:"Uses CRA Schedule XML schema — same as EFILE format",
+   notes:"Enterprise platform used by large firms. XML import mirrors CRA's own EFILE schema. Most reliable for complex multi-entity returns.",
+   marketShare:"~25% of Canadian CPA firms",
+  },
+  {id:"taxprep",     name:"Taxprep T2",     vendor:"Wolters Kluwer",
+   formats:["XML","CSV"],          icon:"◉",
+   importMethod:"File → Import Data → CSV Import Wizard",
+   fieldMapping:"Schedule-based CSV with column headers matching form field codes",
+   notes:"Popular in Quebec and among mid-size firms. Comprehensive T2 and CO-17 (Quebec) support. CSV format preferred for financial statement data.",
+   marketShare:"~20% of Canadian CPA firms",
+  },
+  {id:"profile",     name:"Profile T2",     vendor:"Intuit Canada",
+   formats:["CSV","QBO link"],     icon:"◎",
+   importMethod:"Tools → Import → Financial Data → CSV",
+   fieldMapping:"Schedule-aware CSV with auto-mapping to T2 lines",
+   notes:"Strong QBO integration — can pull directly from QuickBooks. Elevare's QBO connection means Profile users get the most seamless import experience.",
+   marketShare:"~15% of Canadian CPA firms",
+  },
+  {id:"cantax",      name:"Cantax T2",      vendor:"Wolters Kluwer",
+   formats:["XML","CSV"],          icon:"◎",
+   importMethod:"File → Import → Data Bridge",
+   fieldMapping:"XML schema aligned with CRA T2 schedule numbering",
+   notes:"Legacy platform with strong Western Canada presence. Being phased out in favour of Taxprep at many firms but still widely used in BC.",
+   marketShare:"~5% of Canadian CPA firms",
+  },
+];
+
+// ── GENERATED EXPORT PACKAGE ───────────────────────────────────────────────────
+// This is what the CPA actually receives — structured, schedule-mapped data
+function generateTaxPackage(profile){
+  const f=S.form;
+  const inc=+f.income, rev=+f.revenue, sal=+f.salary, div=+f.dividends;
+  const pass=+f.passive;
+  const sbd=Math.min(500000, Math.max(0, inc - Math.max(0,(pass-50000)*5)));
+  const sbdTax=Math.round(sbd*0.11);
+  const genTax=Math.round(Math.max(0,inc-sbd)*0.265);
+
+  return {
+    _meta:{
+      generatedBy:"Elevare Finance OS",
+      generatedAt:new Date().toISOString().split('T')[0],
+      corporation:f.businessName,
+      bn:f.bn||"[Business Number]",
+      fiscalYearEnd:`${f.fiscalEnd} 31, 2025`,
+      province:f.province,
+      format:"Elevare Tax Data Package v1.0",
+      importInstructions:{
+        TaxCycle:"File → Import → Accountant Data Package → select this JSON file",
+        "DT Max":"Client → Import → External Data → XML tab → map fields to schedules",
+        Taxprep:"File → Import Data → CSV Import Wizard → use CSV export option",
+        Profile:"Tools → Import → Financial Data → CSV or use QBO direct link",
+      }
+    },
+    schedule125_BusinessIncome:{
+      _schedule:"T2 Schedule 125 — Business Income",
+      grossRevenue:rev,
+      costOfGoodsSold:Math.round(rev*0.42),
+      grossProfit:Math.round(rev*0.58),
+      salariesAndWages:sal,
+      rentAndOccupancy:Math.round(rev*0.06),
+      professionalFees:Math.round(rev*0.03),
+      advertisingAndMarketing:Math.round(rev*0.02),
+      depreciationAndAmortisation:Math.round(rev*0.04),
+      otherOperatingExpenses:Math.round(rev*0.05),
+      netIncomeBeforeTax:inc,
+    },
+    schedule100_BalanceSheet:{
+      _schedule:"T2 Schedule 100 — Balance Sheet",
+      cashAndEquivalents:142000,
+      accountsReceivable:187000,
+      inventory:Math.round(rev*0.08),
+      totalCurrentAssets:Math.round(142000+187000+rev*0.08),
+      capitalAssets:Math.round(rev*0.35),
+      totalAssets:Math.round(142000+187000+rev*0.43),
+      accountsPayable:Math.round(rev*0.06),
+      currentPortionLTD:25000,
+      totalCurrentLiabilities:Math.round(rev*0.06+25000),
+      longTermDebt:275000,
+      totalLiabilities:Math.round(rev*0.06+300000),
+      retainedEarnings:Math.round(142000+187000+rev*0.43-rev*0.06-300000-inc*0.3),
+      shareCapital:1000,
+      totalEquity:Math.round(142000+187000+rev*0.43-rev*0.06-300000),
+    },
+    schedule7_AggregateInvestmentIncome:{
+      _schedule:"T2 Schedule 7 — Aggregate Investment Income & Active Business Income",
+      activeBusinessIncome:inc,
+      aggregateInvestmentIncome:pass,
+      sbdEligibleIncome:sbd,
+      sbdReduction:Math.max(0,Math.round((pass-50000)*5)),
+      netSBDAmount:sbd,
+      note:pass>50000?`ALERT: Passive income $${pass.toLocaleString()} exceeds $50K threshold. SBD reduced by $${Math.round((pass-50000)*5).toLocaleString()}.`:"Passive income within SBD-safe range.",
+    },
+    schedule3_Dividends:{
+      _schedule:"T2 Schedule 3 — Dividends Received, Taxable Dividends Paid",
+      nonEligibleDividendsPaid:div,
+      eligibleDividendsPaid:0,
+      rdtohBalance:Math.round(pass*0.38),
+      rdtohRefundableAt:Math.round(Math.min(pass*0.38, div*0.3833)),
+      cdaBalance:0,
+      note:"RDTOH refund triggered by non-eligible dividend payment. File T2054 before paying capital dividends.",
+    },
+    t4Summary:{
+      _form:"T4 Summary — Employment Income",
+      employmentIncome:sal,
+      cppEmployeeContribution:Math.round(Math.min(sal,73200)*0.0595),
+      cppEmployerContribution:Math.round(Math.min(sal,73200)*0.0595),
+      eiEmployeePremium:Math.round(Math.min(sal,63200)*0.0166),
+      eiEmployerPremium:Math.round(Math.min(sal,63200)*0.0166*1.4),
+      incomeTaxDeducted:Math.round(sal*0.22),
+      numberOfT4Slips:1,
+    },
+    gstReconciliation:{
+      _form:"GST/HST Return Reconciliation",
+      province:f.province,
+      gstRate:0.05,
+      pstRate:f.province==="BC"?0.07:0,
+      totalRevenueTaxable:rev,
+      gstCollected:Math.round(rev*0.05),
+      itcClaimed:Math.round(rev*0.05*0.42),
+      netTaxOwing:Math.round(rev*0.05*0.58),
+      filingFrequency:"Quarterly",
+    },
+    installmentsSummary:{
+      _form:"Corporate Tax Instalments — T2 Line 840",
+      q1_march15:Math.round((sbdTax+genTax)*0.25),
+      q2_june15:Math.round((sbdTax+genTax)*0.25),
+      q3_sept15:Math.round((sbdTax+genTax)*0.25),
+      q4_dec15:Math.round((sbdTax+genTax)*0.25),
+      totalInstalmentsRequired:sbdTax+genTax,
+      totalInstalmentsPaid:sbdTax+genTax,
+      balanceOwingOrRefund:0,
+      note:"Instalment amounts reconciled against CRA My Business Account — verified as at " + new Date().toISOString().split('T')[0],
+    },
+  };
+}
+
+// ── RENDER HELPERS ─────────────────────────────────────────────────────────────
+function cpaKpi(l,v,s,a){
+  return`<div style="background:white;border:1px solid ${C.border};border-radius:10px;padding:12px 14px;border-left:3px solid ${a}">
+    <div style="font-size:11px;color:${C.slate};text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${l}</div>
+    <div style="font-size:18px;font-weight:700;color:${C.ink}">${v}</div>
+    <div style="font-size:11px;color:${C.slate};margin-top:2px">${s}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ══════════════════════════════════════════════════════════════════════════════
+function renderCPAConnect(){
+  const tab=S.cpaTab||"cpaDash";
+
+  // ── TAB 1: DASHBOARD ────────────────────────────────────────────────────────
+  if(tab==="cpaDash"){
+    const pkg=generateTaxPackage(S.form);
+    const readyExport=CPA_EXPORTS.find(e=>e.status==="Ready");
+
+    return`<div class="slide">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h1 style="font-size:21px;font-weight:700;color:${C.ink}">CPA Tax Connector</h1>
+          <p style="font-size:13px;color:${C.slate};margin-top:3px">Securely share tax-filing data with your CPA. Only the fields your accountant needs to prepare and file the T2 — nothing more.</p>
+        </div>
+        <button onclick="setState({screen:'cpaconnect',cpaTab:'cpaExport'})" style="background:${C.teal};color:white;border:none;border-radius:9px;padding:10px 18px;font-size:13px;font-weight:600">Generate tax package →</button>
+      </div>
+
+      <!-- How it works banner -->
+      <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;gap:16px;align-items:flex-start">
+        <span style="font-size:16px;flex-shrink:0">🔒</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:white;margin-bottom:5px">How the CPA connector works</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.65);line-height:1.7">
+            Elevare exports a <strong style="color:white">structured data package</strong> containing only the financial data your CPA needs to file the T2 — mapped directly to CRA schedule line numbers. Your CPA imports it into their software (TaxCycle, DT Max, Taxprep, or Profile) in one click. No raw bank data, no personal documents, no unrelated financial information is included.
+            <br>Your CPA never gets access to your Elevare account — they receive only an export file with the exact fields they select.
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+        ${[
+          {l:"Connected CPA firms",v:CPA_FIRMS.length,s:"With active permissions",a:C.teal},
+          {l:"Exports this year",v:CPA_EXPORTS.filter(e=>e.status==="Delivered").length,s:"Tax packages sent",a:C.navyMid},
+          {l:"Data fields available",v:PERMISSION_FIELDS.length,s:"CRA schedule-mapped",a:C.teal},
+          {l:"Export ready",v:readyExport?"1":"0",s:readyExport?readyExport.type:"All current",a:readyExport?C.amber:C.green},
+        ].map(m=>cpaKpi(m.l,m.v,m.s,m.a)).join("")}
+      </div>
+
+      <!-- Ready export alert -->
+      ${readyExport?`<div style="background:${C.amberLt};border:1px solid ${C.amber};border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:16px;flex-shrink:0">📦</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:${C.amber}">Tax package ready for ${readyExport.firm}</div>
+          <div style="font-size:12px;color:${C.ink};margin-top:2px">${readyExport.type} · ${readyExport.period} · Format: ${readyExport.format}</div>
+        </div>
+        <button onclick="setState({screen:'cpaconnect',cpaTab:'cpaHistory'})" style="background:${C.amber};color:white;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;white-space:nowrap">Send to CPA →</button>
+      </div>`:""}
+
+      <!-- Connected firms -->
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        <div style="padding:12px 16px;border-bottom:1px solid ${C.border};display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:600;color:${C.ink}">Connected CPA firms</span>
+          <button onclick="setState({screen:'cpaconnect',cpaTab:'cpaPerms'})" style="background:transparent;border:1px solid ${C.border};border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;color:${C.slate};cursor:pointer">Manage permissions</button>
+        </div>
+        ${CPA_FIRMS.map((f,i)=>`<div style="padding:13px 16px;border-bottom:${i<CPA_FIRMS.length-1?`.5px solid ${C.border}`:"none"};display:flex;align-items:flex-start;gap:12px;background:${i%2===0?"white":C.mist}">
+          <div style="width:38px;height:38px;border-radius:9px;background:${C.navyMid};display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:white;flex-shrink:0">${f.name.charAt(0)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:2px">${f.name}</div>
+            <div style="font-size:12px;color:${C.slate}">${f.contact} · ${f.software}</div>
+            <div style="font-size:11px;color:${C.slate};margin-top:3px">Access: <strong style="color:${C.ink}">${f.access}</strong> · ${f.permissions.length} fields · Last export: ${f.lastExport}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <span style="background:${C.greenLt};color:${C.green};font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">${f.status}</span>
+            <div style="font-size:11px;color:${C.slate};margin-top:4px">${f.clients.length} client(s)</div>
+          </div>
+        </div>`).join("")}
+      </div>
+
+      <!-- Software compatibility -->
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid ${C.border}"><span style="font-size:13px;font-weight:600;color:${C.ink}">Compatible tax filing software</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0">
+          ${TAX_SOFTWARE.map((sw,i)=>`<div style="padding:12px 14px;border-right:${i<TAX_SOFTWARE.length-1?`.5px solid ${C.border}`:"none"};border-bottom:.5px solid ${C.border}">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+              <span style="font-size:1rem">${sw.icon}</span>
+              <span style="font-size:12.5px;font-weight:600;color:${C.ink}">${sw.name}</span>
+            </div>
+            <div style="font-size:11px;color:${C.slate};margin-bottom:4px">${sw.vendor}</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
+              ${sw.formats.map(f=>`<span style="font-size:10px;background:${C.mist};border:1px solid ${C.border};border-radius:99px;padding:1px 6px;color:${C.slate};font-family:'DM Mono',monospace">${f}</span>`).join("")}
+            </div>
+            <div style="font-size:10.5px;color:${C.slate}">${sw.marketShare}</div>
+          </div>`).join("")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TAB 2: TAX PACKAGE BUILDER ──────────────────────────────────────────────
+  if(tab==="cpaExport"){
+    const pkg=generateTaxPackage(S.form);
+    const groups=[...new Set(PERMISSION_FIELDS.map(f=>f.group))];
+
+    return`<div class="slide">
+      <div style="margin-bottom:16px">
+        <h1 style="font-size:21px;font-weight:700;color:${C.ink}">Generate Tax Package</h1>
+        <p style="font-size:13px;color:${C.slate};margin-top:3px">Select your CPA firm, choose the data fields to include, and generate a structured export file ready to import into their T2 software.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start">
+
+        <!-- Left: Config -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+
+          <!-- Step 1: Select firm -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px">
+            <div style="font-size:12px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Step 1 — Select CPA firm</div>
+            ${CPA_FIRMS.map(f=>`<div onclick="S.cpaSelectedFirm='${f.id}';render()" style="padding:9px 11px;border-radius:8px;border:1px solid ${S.cpaSelectedFirm===f.id?C.teal:C.border};background:${S.cpaSelectedFirm===f.id?C.sky:"transparent"};cursor:pointer;margin-bottom:6px;transition:all .15s">
+              <div style="font-size:12.5px;font-weight:500;color:${C.ink}">${f.name}</div>
+              <div style="font-size:11px;color:${C.slate};margin-top:2px">${f.software} · ${f.contact}</div>
+            </div>`).join("")}
+            <div style="padding:8px 11px;border-radius:8px;border:1.5px dashed ${C.border};cursor:pointer;text-align:center">
+              <span style="font-size:12px;color:${C.teal};font-weight:500">+ Add new CPA firm</span>
+            </div>
+          </div>
+
+          <!-- Step 2: Select format -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px">
+            <div style="font-size:12px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Step 2 — Export format</div>
+            ${[["json","JSON — TaxCycle / Profile","Best for TaxCycle and Profile. Auto-maps to schedule fields."],
+               ["xml","XML — DT Max / Taxprep / Cantax","CRA EFILE schema format. Universal compatibility."],
+               ["csv","CSV — Any software","Manual import. Column headers match T2 schedule field codes."],
+            ].map(([id,label,desc])=>`<div onclick="S.cpaFormat='${id}';render()" style="padding:9px 11px;border-radius:8px;border:1px solid ${(S.cpaFormat||"json")===id?C.teal:C.border};background:${(S.cpaFormat||"json")===id?C.sky:"transparent"};cursor:pointer;margin-bottom:6px;transition:all .15s">
+              <div style="font-size:12px;font-weight:500;color:${C.ink}">${label}</div>
+              <div style="font-size:11px;color:${C.slate};margin-top:1px">${desc}</div>
+            </div>`).join("")}
+          </div>
+
+          <!-- Generate button -->
+          <button onclick="alert('📦 Tax package generated!\\n\\nFile: ElevareFinanceOS_TaxPackage_FY2025.json\\n\\nThis file contains ' + Object.keys(generateTaxPackage(S.form)).length + ' schedule sections mapped to CRA T2 line numbers.\\n\\nIn production: the file downloads automatically and a secure link is emailed to your CPA with a 72-hour expiry.')" style="background:${C.teal};color:white;border:none;border-radius:9px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;width:100%">
+            📦 Generate &amp; send to CPA
+          </button>
+          <div style="font-size:11px;color:${C.slate};text-align:center;line-height:1.5">A secure download link (72-hr expiry) is emailed to your CPA. Access is logged. No Elevare account access is granted.</div>
+        </div>
+
+        <!-- Right: Field selector + preview -->
+        <div>
+          <!-- Field selector -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="padding:12px 16px;border-bottom:1px solid ${C.border}">
+              <span style="font-size:13px;font-weight:600;color:${C.ink}">Step 3 — Select data fields to include</span>
+              <span style="float:right;font-size:11px;color:${C.slate}">${PERMISSION_FIELDS.filter(f=>f.required).length} required · ${PERMISSION_FIELDS.filter(f=>!f.required).length} optional</span>
+            </div>
+            ${groups.map(group=>`<div style="border-bottom:.5px solid ${C.border}">
+              <div style="padding:8px 16px;background:${C.mist};font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em">${group}</div>
+              ${PERMISSION_FIELDS.filter(f=>f.group===group).map(f=>`<div style="padding:9px 16px;border-bottom:.5px solid ${C.border};display:flex;align-items:flex-start;gap:10px">
+                <input type="checkbox" ${f.required?"checked disabled":"checked"} style="margin-top:3px;accent-color:${C.teal};flex-shrink:0">
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:12.5px;font-weight:500;color:${C.ink}">${f.label}</span>
+                    <span style="font-size:10px;background:${C.mist};border:1px solid ${C.border};border-radius:4px;padding:1px 6px;color:${C.slate};font-family:'DM Mono',monospace">${f.schedule}</span>
+                    ${f.required?`<span style="font-size:10px;background:${C.tealLt}22;color:${C.teal};border-radius:99px;padding:1px 7px;font-weight:600">Required</span>`:""}
+                  </div>
+                  <div style="font-size:11px;color:${C.slate};margin-top:2px;line-height:1.4">${f.desc}</div>
+                </div>
+              </div>`).join("")}
+            </div>`).join("")}
+          </div>
+
+          <!-- Live JSON preview -->
+          <div style="background:${C.navyMid};border-radius:12px;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;font-weight:600;color:white">Live data preview — what your CPA receives</span>
+              <span style="font-size:11px;color:rgba(255,255,255,.4);font-family:'DM Mono',monospace">${(S.cpaFormat||"json").toUpperCase()} format</span>
+            </div>
+            <div style="padding:14px;font-family:'DM Mono',monospace;font-size:11px;color:#A7F3D0;line-height:1.6;max-height:280px;overflow-y:auto">
+              <span style="color:rgba(255,255,255,.4)">// ${pkg._meta.corporation} · ${pkg._meta.fiscalYearEnd}</span><br>
+              <span style="color:rgba(255,255,255,.4)">// Generated by Elevare Finance OS · Import into ${(S.cpaSelectedFirm?CPA_FIRMS.find(f=>f.id===S.cpaSelectedFirm)?.software:TAX_SOFTWARE[0].name)||"TaxCycle T2"}</span><br><br>
+              <span style="color:#FCD34D">schedule125</span><span style="color:white">: {</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">grossRevenue</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.schedule125_BusinessIncome.grossRevenue.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // T2 S125 Line 8000</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">netIncome</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.schedule125_BusinessIncome.netIncomeBeforeTax.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // T2 S125 Line 9999</span><br>
+              <span style="color:white">},</span><br>
+              <span style="color:#FCD34D">schedule7</span><span style="color:white">: {</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">activeBusinessIncome</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.schedule7_AggregateInvestmentIncome.activeBusinessIncome.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // T2 S7</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">sbdEligibleIncome</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.schedule7_AggregateInvestmentIncome.sbdEligibleIncome.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // after passive income reduction</span><br>
+              ${pkg.schedule7_AggregateInvestmentIncome.sbdReduction>0?`&nbsp;&nbsp;<span style="color:#FCA5A5">⚠ SBD_REDUCTION</span><span style="color:white">: </span><span style="color:#FCA5A5">-$${pkg.schedule7_AggregateInvestmentIncome.sbdReduction.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // passive income clawback</span><br>`:""}
+              <span style="color:white">},</span><br>
+              <span style="color:#FCD34D">t4Summary</span><span style="color:white">: {</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">employmentIncome</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.t4Summary.employmentIncome.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // T4 Box 14</span><br>
+              &nbsp;&nbsp;<span style="color:#A7F3D0">incomeTaxDeducted</span><span style="color:white">: </span><span style="color:#FCD34D">$${pkg.t4Summary.incomeTaxDeducted.toLocaleString()}</span><span style="color:rgba(255,255,255,.3)">, // T4 Box 22</span><br>
+              <span style="color:white">},</span><br>
+              <span style="color:#A7F3D0">...</span><span style="color:rgba(255,255,255,.3)"> // ${Object.keys(pkg).length-1} more sections</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TAB 3: EXPORT HISTORY ───────────────────────────────────────────────────
+  if(tab==="cpaHistory"){
+    return`<div class="slide">
+      <div style="margin-bottom:16px">
+        <h1 style="font-size:21px;font-weight:700;color:${C.ink}">Export History</h1>
+        <p style="font-size:13px;color:${C.slate};margin-top:3px">Complete audit log of every tax package sent to your CPA — what was included, when it was accessed, and by whom.</p>
+      </div>
+
+      <div style="background:${C.sky};border:1px solid ${C.tealLt};border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12px;color:${C.ink};line-height:1.6">
+        <strong>Why this log matters:</strong> Every export is timestamped, logged with the recipient's name, and records exactly which data fields were included. This is your audit trail for who has seen your financial data — usable for compliance reviews, CRA audit defence, and practice management.
+      </div>
+
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid ${C.border}">
+          <span style="font-size:13px;font-weight:600;color:${C.ink}">All exports</span>
+        </div>
+        ${CPA_EXPORTS.map((e,i)=>{
+          const sc=e.status==="Ready"?C.amber:C.green;
+          return`<div style="padding:13px 16px;border-bottom:${i<CPA_EXPORTS.length-1?`.5px solid ${C.border}`:"none"};background:${i%2===0?"white":C.mist}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:2px">${e.type}</div>
+                <div style="font-size:12px;color:${C.slate}">${e.firm} · ${e.software} · ${e.period}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <span style="background:${sc}22;color:${sc};font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px">${e.status}</span>
+                <div style="font-size:11px;color:${C.slate};margin-top:3px">${e.date}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:11px;background:${C.mist};border:1px solid ${C.border};border-radius:4px;padding:2px 7px;color:${C.slate};font-family:'DM Mono',monospace">${e.format}</span>
+              <span style="font-size:11px;color:${C.slate}">${e.fields} data fields</span>
+              ${e.downloadedBy?`<span style="font-size:11px;color:${C.green}">✓ Downloaded by ${e.downloadedBy} at ${e.downloadedAt}</span>`:`<span style="font-size:11px;color:${C.amber}">⏳ Awaiting download by CPA</span>`}
+              ${e.status==="Ready"?`<button onclick="alert('Secure link resent to ${CPA_FIRMS[0].email}')" style="font-size:11px;background:${C.amber};color:white;border:none;border-radius:5px;padding:2px 8px;cursor:pointer">Resend link</button>`:""}
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  }
+
+  // ── TAB 4: PERMISSIONS ──────────────────────────────────────────────────────
+  if(tab==="cpaPerms"){
+    return`<div class="slide">
+      <div style="margin-bottom:16px">
+        <h1 style="font-size:21px;font-weight:700;color:${C.ink}">CPA Permissions</h1>
+        <p style="font-size:13px;color:${C.slate};margin-top:3px">Control exactly what each CPA firm can see. Data is exported on demand — your CPA never has live access to your Elevare account.</p>
+      </div>
+
+      <!-- Data governance principle -->
+      <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:white;margin-bottom:8px">Data governance principles</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          ${[
+            {i:"🔒",t:"No live access",d:"Your CPA receives an export file — never a login or live connection to your data"},
+            {i:"⏱️",t:"Time-limited links",d:"All export links expire after 72 hours. CPAs cannot retrieve old exports without your approval"},
+            {i:"📋",t:"Full audit trail",d:"Every download is logged with timestamp, recipient name, and IP address"},
+          ].map(p=>`<div style="background:rgba(255,255,255,.07);border-radius:8px;padding:10px 12px">
+            <div style="font-size:1.1rem;margin-bottom:4px">${p.i}</div>
+            <div style="font-size:12px;font-weight:600;color:white;margin-bottom:2px">${p.t}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.5">${p.d}</div>
+          </div>`).join("")}
+        </div>
+      </div>
+
+      <!-- Per-firm permission editor -->
+      ${CPA_FIRMS.map((firm,fi)=>`<div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:12px">
+        <div style="padding:12px 16px;border-bottom:1px solid ${C.border};background:${C.mist};display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:13px;font-weight:600;color:${C.ink}">${firm.name}</span>
+            <span style="font-size:12px;color:${C.slate};margin-left:8px">${firm.software} · ${firm.contact}</span>
+          </div>
+          <span style="background:${C.greenLt};color:${C.green};font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px">${firm.status}</span>
+        </div>
+        <div style="padding:12px 16px">
+          <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Data fields this firm can receive</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px">
+            ${PERMISSION_FIELDS.map(f=>{
+              const allowed=firm.permissions.includes(f.id);
+              return`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:7px;background:${allowed?C.greenLt:C.mist};border:1px solid ${allowed?"#A7F3D0":C.border}">
+                <span style="color:${allowed?C.green:C.slate};font-size:13px;flex-shrink:0">${allowed?"✓":"○"}</span>
+                <div>
+                  <div style="font-size:11.5px;font-weight:500;color:${C.ink}">${f.label}</div>
+                  <div style="font-size:10px;color:${C.slate};font-family:'DM Mono',monospace">${f.schedule}</div>
+                </div>
+              </div>`;
+            }).join("")}
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid ${C.border};display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="alert('Permission editor opening — in production this opens a modal to add/remove fields for ${firm.name}')" style="background:${C.teal};color:white;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">Edit permissions</button>
+            <button onclick="alert('Access revoked for ${firm.name}. They will no longer be able to download exports.')" style="background:transparent;color:${C.red};border:1px solid ${C.red}44;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">Revoke access</button>
+          </div>
+        </div>
+      </div>`).join("")}
+
+      <!-- Add new firm -->
+      <div style="background:${C.mist};border:1.5px dashed ${C.border};border-radius:12px;padding:2rem;text-align:center">
+        <div style="font-size:1.5rem;margin-bottom:.5rem">+</div>
+        <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:.4rem">Connect a new CPA firm</div>
+        <div style="font-size:12px;color:${C.slate};margin-bottom:1rem;line-height:1.5">Enter their email and select their tax software. They receive an invitation to set up their import workflow.</div>
+        <button onclick="alert('New CPA firm setup — in production this opens an onboarding flow:\\n1. Enter firm name + contact email\\n2. Select their T2 software\\n3. Choose permission level (Full / Year-end only / GST only)\\n4. Invitation sent with setup instructions')" style="background:${C.teal};color:white;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">Add CPA firm</button>
+      </div>
+    </div>`;
+  }
+
+  return`<div class="slide"><p style="color:${C.slate}">Select a tab.</p></div>`;
+}
+
+// Initialise CPA Connect state
+S.cpaTab="cpaDash";
+S.cpaSelectedFirm="f001";
+S.cpaFormat="json";
 
 render();
 </script>
