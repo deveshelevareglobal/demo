@@ -149,6 +149,7 @@ const PROFILES = {
       fiscalEnd:"Dec",employees:"8",revenue:"1200000",income:"387000",passive:"38000",
       salary:"95000",dividends:"45000",rrspRoom:"28400",rrspContrib:"18000",tfsa:"7000",
       holdco:false,coli:false,ipp:false,goals:["cash-flow","tax-savings"],
+      bizActivities:["hiring","digital","export"],usOperations:false,usRevenuePct:12,
     },
     stats:{verified:64120,pending:412000,forecast:91,dataScore:78},
     badge:"Construction & trades",
@@ -2460,6 +2461,36 @@ function renderHome(){
       <div style="font-size:12px;color:${C.ink};margin-top:2px">${urgent[0].action} · <strong>${urgent[0].daysAway} days remaining</strong></div>
     </div>
     <button onclick="setState({screen:'intelligence',iosTab:'ioscal'})" style="background:${C.red};color:white;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;white-space:nowrap">See calendar →</button>
+  </div>`:""}
+
+  <!-- CROSS-BORDER INSIGHT — fires when US revenue detected ──────────────── -->
+  ${(S.form.bizActivities||[]).includes("export")&&(S.form.usRevenuePct||0)>0?`
+  <div style="background:linear-gradient(135deg,rgba(14,138,125,.08),rgba(26,58,92,.3));border:1px solid rgba(14,138,125,.3);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="font-size:16px;flex-shrink:0">🌐</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:4px">Cross-border activity detected — 3 insights</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.teal};margin-bottom:2px">CanExport SMEs</div>
+            <div style="font-size:11px;color:${C.ink}"><strong>$25,000</strong> available</div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">50% of US export costs · Deadline May 29</div>
+          </div>
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.amber};margin-bottom:2px">SBD Risk — US Income</div>
+            <div style="font-size:11px;color:${C.ink}"><strong>${S.form.usRevenuePct||12}% US revenue</strong></div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">US PE income may not qualify for SBD</div>
+          </div>
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.ink};margin-bottom:2px">LCGE Protection</div>
+            <div style="font-size:11px;color:${C.ink}"><strong>$1.25M exemption</strong></div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">US ops may affect QSBC status — review needed</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:${C.slate};line-height:1.5">Phase 2 module: Cross-border income attribution, PE income split, QSBC eligibility monitor, and US subsidiary FAPI detection. Available Q1 2027.</div>
+      </div>
+      <button onclick="setState({screen:'grants',grTab:'grdash'})" style="background:${C.teal};color:white;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0">CanExport →</button>
+    </div>
   </div>`:""}`;
 
   // ① Credit cards strip
@@ -2979,14 +3010,16 @@ const GRANTS_DB=[
   {id:"canexport",name:"CanExport SMEs",type:"Grant",level:"Federal",
    amount:50000,realistic:25000,rate:"Up to 50% of eligible export costs",
    deadline:"Feb 4 – May 29, 2026",status:"open",
-   desc:"Non-repayable grant for entering new export markets. Covers travel, trade shows, market research, and marketing materials. 2026-27 rules tightened: now requires minimum 3 FTEs and $300K annual revenue. Application window closes May 29.",
-   eligibility:["3+ FTE employees","$300K+ annual revenue (new 2026 rule)","For-profit Canadian business","Export activities to new markets"],
+   desc:"Non-repayable grant covering 50% of costs to enter or expand into new export markets — including the US. Eligible costs: trade shows, US market research, US marketing materials, travel for client meetings, and website localisation for US buyers. Construction CCPCs bidding on US projects, manufacturing companies selling to US distributors, and technology firms with US SaaS customers all qualify. 2026-27 rules: minimum 3 FTEs and $300K annual revenue. Reimbursement model — pay first, claim back 50% after completion. Application window closes May 29.",
+   eligibility:["3+ FTE employees","$300K+ annual revenue (new 2026 rule)","For-profit Canadian business","Export or planned export to new markets including US","Work performed in Canada (US PE not required)"],
    industries:["all"],minRevenue:300000,maxRevenue:100000000,minEmployees:3,
-   stacksWith:["irap","csbfp"],conflictsWith:[],
-   fit:{construction:2,professional:4,tech:5,manufacturing:5,retail:3,healthcare:2},
-   cashImpact:"Reimburses up to 50% of export project costs after completion",
-   taxImpact:"Grant is taxable income",
-   timeToFunds:"After project completion — reimbursement model",effort:"Medium — detailed project proposal required"},
+   stacksWith:["irap","csbfp","bcExport"],conflictsWith:[],
+   fit:{construction:4,professional:4,tech:5,manufacturing:5,retail:3,healthcare:3},
+   cashImpact:"Reimburses up to $25,000 (50% of $50,000 in eligible export costs) after project completion",
+   taxImpact:"Grant is taxable income — report as other income in year received",
+   crossBorder:true,
+   crossBorderNote:"Specifically covers costs of pursuing US clients and contracts. No US permanent establishment required — Canadian companies selling services to US customers qualify.",
+   timeToFunds:"After project completion — reimbursement model. Budget 6–10 weeks post-project for payment.",effort:"Medium — detailed project proposal required. Trade Commissioner Service reviews applications."},
 
   {id:"csjobs",name:"Canada Summer Jobs",type:"Wage Subsidy",level:"Federal",
    amount:12000,realistic:6000,rate:"50% of minimum wage per youth hire (for-profit)",
@@ -6291,6 +6324,15 @@ const IOS_DECISIONS = [
    status:"Implemented",outcome:"Subsidy received — $10,200 total across 22 weeks",actualSaving:10200,verified:true,
    advisorNote:"Candidate referred through WorkBC. Strong fit. Subsidy paid bi-weekly. $10,200 recovered.",
    craRelevant:false,tags:["WorkBC","wage subsidy","hiring","on-the-job training"],module_icon:"🏛️"},
+
+  {id:"d008",date:"2026-05-10",module:"GrantsReady",category:"Cross-border opportunity",
+   title:"CanExport SMEs — $25,000 available for US market development costs",
+   context:"Pinnacle Construction has 12% of revenue from Washington State projects. CanExport SMEs covers 50% of eligible US market development costs — trade show attendance, US client travel, marketing materials for US buyers, and website localisation. Deadline May 29, 2026.",
+   recommendation:"Apply to CanExport SMEs before May 29 deadline. Document $50,000 in US market development costs for 2026 to recover $25,000 non-repayable. Eligible costs include the Seattle trade show registration ($8,200), US project proposal travel ($4,100), and US contractor marketing materials ($12,400).",
+   implementedBy:"Action required",implementedOn:null,
+   status:"In progress",outcome:"Application pending — deadline May 29",actualSaving:null,verified:false,
+   advisorNote:"Cross-border activity detected from QBO project codes — 12% of 2025 revenue from WA State contracts. CanExport requires new-market export intent. WA State qualifies as new market if entered after Jan 1, 2024. Review project dates with advisor before applying.",
+   craRelevant:false,tags:["CanExport","export","US market","cross-border","grant"],module_icon:"🏛️",crossBorder:true},
 ];
 
 // ── GRANT SUCCESS INTELLIGENCE (proprietary cross-client data) ────────────────
