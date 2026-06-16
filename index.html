@@ -150,6 +150,18 @@ const PROFILES = {
       salary:"95000",dividends:"45000",rrspRoom:"28400",rrspContrib:"18000",tfsa:"7000",
       holdco:false,coli:false,ipp:false,goals:["cash-flow","tax-savings"],
       bizActivities:["hiring","digital","export"],usOperations:false,usRevenuePct:12,
+      // Passive income composition breakdown
+      passiveBreakdown:{
+        interest:8200,          // GICs + savings — worst type, NERDTOH only
+        eligibleDividends:14800, // Canadian public co shares — ERDTOH 38.33%
+        capitalGains:11000,     // Realised gains — 50% inclusion below $250K threshold
+        rental:0,               // No rental income this year
+        foreign:4000,           // US ETF dividends — NERDTOH, 15% WHT credit
+      },
+      // RDTOH balances (prior year carry-forward)
+      nerdtoh:4820,             // Non-eligible RDTOH — released on non-eligible dividends
+      erdtoh:3140,              // Eligible RDTOH — released on eligible dividends
+      cdaBalance:5500,          // Capital Dividend Account — tax-free extraction available
     },
     stats:{verified:64120,pending:412000,forecast:91,dataScore:78},
     badge:"Construction & trades",
@@ -164,6 +176,18 @@ const PROFILES = {
       fiscalEnd:"Dec",employees:"6",revenue:"980000",income:"512000",passive:"67000",
       salary:"120000",dividends:"85000",rrspRoom:"35000",rrspContrib:"28000",tfsa:"6500",
       holdco:true,coli:false,ipp:true,goals:["tax-savings","passive-income","retirement"],
+      // Passive income composition breakdown — dental has higher passive due to retained earnings
+      passiveBreakdown:{
+        interest:18000,         // Holdco GICs — high interest due to conservative investment mix
+        eligibleDividends:28000, // Canadian blue-chip equities in HoldCo
+        capitalGains:14000,     // Portfolio rebalancing — 50% inclusion, below $250K
+        rental:0,               // Dental office owned by HoldCo — connected corp rental (active)
+        foreign:7000,           // US dividend ETFs — NERDTOH, WHT credit
+      },
+      // RDTOH balances
+      nerdtoh:18420,            // Higher NERDTOH from interest and foreign income
+      erdtoh:10740,             // ERDTOH from eligible Canadian dividends
+      cdaBalance:7000,          // CDA from capital gains non-taxable portion
     },
     stats:{verified:71400,pending:287000,forecast:88,dataScore:71},
     badge:"Healthcare & dental",
@@ -1645,6 +1669,56 @@ function renderTaxready(){
       <div style="flex:1"><div style="display:flex;gap:8px;margin-bottom:4px">${badge(recs[0]?.level||"HIGH")}</div><div style="font-size:13px;color:${C.ink};font-weight:500">${recs[0]?.title}</div></div>
       <button onclick="setState({taxTab:'alerts'})" style="background:${C.amber};color:white;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:600">See all actions →</button>
     </div>
+
+    <!-- PAYROLL INTELLIGENCE PANEL ─────────────────────────────────────────── -->
+    ${(()=>{
+      const sal=+(c.salary)||0;
+      const emp=+(c.employees)||0;
+      const cpp2Applies=sal>74600;
+      const cpp2Band=Math.max(0,Math.min(sal,85000)-74600);
+      const cpp2Correct=Math.round(cpp2Band*0.04);
+      const cpp2Wrong=Math.round(cpp2Band*0.0595);
+      const cpp2Diff=cpp2Wrong-cpp2Correct;
+      const eiSaving=Math.min(emp,Math.max(1,Math.floor(emp*0.5)))*600;
+      const alerts=[
+        cpp2Applies&&cpp2Diff>0?{
+          icon:"⚠",color:C.amber,
+          title:`CPP2 rate check — potential over-deduction of ${fmt(cpp2Diff)}/employee`,
+          desc:`Your salary of ${fmt(sal)} triggers CPP2 on a $${cpp2Band.toLocaleString()} band. If payroll software uses 5.95% (CPP1 rate) instead of 4.00% (CPP2 rate), you are over-deducting ${fmt(cpp2Diff)} per employee. Correct CPP2 employer cost: ${fmt(cpp2Correct)}.`,
+          action:"Confirm your payroll software → CPP2 tab → rate = 4.00%",
+          module:"Payroll compliance"
+        }:null,
+        emp>2?{
+          icon:"💡",color:C.teal,
+          title:`EI reduced premium — potential ${fmt(eiSaving)}/year saving for your team`,
+          desc:`If you offer a qualified short-term disability plan to your ${emp} employees, you may qualify for a reduced EI employer premium below the standard 1.4× rate. Apply to Service Canada before January 1. Non-retroactive.`,
+          action:"Check GrantsReady → EI Reduced Premium → eligibility details",
+          module:"Payroll saving"
+        }:null,
+        {
+          icon:"📋",color:C.slate,
+          title:"T4 Box 16A (CPP2) — required on all 2026 T4 slips",
+          desc:"CPP2 must be disaggregated from CPP1 on T4s filed for 2026. T4 Box 16 = CPP1, Box 16A = CPP2. Slips missing Box 16A require T4 amendments. Confirm payroll software is CPP2-compliant before February 28 filing deadline.",
+          action:"Check TaxReady → Year-End → Payroll compliance checklist",
+          module:"Payroll filing"
+        }
+      ].filter(Boolean);
+      return`<div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-top:12px">
+        <div style="padding:10px 16px;border-bottom:1px solid ${C.border};display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:600;color:${C.ink}">Payroll intelligence — ${new Date().getFullYear()} alerts</span>
+          <button onclick="setState({taxTab:'yearend'})" style="background:transparent;border:1px solid ${C.border};border-radius:6px;padding:4px 10px;font-size:11px;color:${C.slate};cursor:pointer">Full checklist →</button>
+        </div>
+        ${alerts.map(a=>`<div style="padding:11px 16px;border-bottom:1px solid ${C.border};display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:16px;flex-shrink:0">${a.icon}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;color:${a.color};margin-bottom:2px">${a.title}</div>
+            <div style="font-size:11.5px;color:${C.slate};line-height:1.5;margin-bottom:3px">${a.desc}</div>
+            <div style="font-size:11px;color:${C.teal};font-weight:500">${a.action}</div>
+          </div>
+          <span style="font-size:10px;background:${C.mist};border:1px solid ${C.border};border-radius:4px;padding:2px 7px;color:${C.slate};white-space:nowrap;flex-shrink:0">${a.module}</span>
+        </div>`).join("")}
+      </div>`;
+    })()}
   </div>`;
 
   if(S.taxTab==="optimizer"){
@@ -1668,8 +1742,44 @@ function renderTaxready(){
             <input type="range" min="0" max="150000" step="5000" value="${div}" oninput="setState({divSlider:+this.value})" style="width:100%">
           </div>
           <div style="background:${C.mist};border-radius:8px;padding:12px">
-            <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Implications</div>
-            <div style="font-size:12.5px;color:${C.ink};line-height:1.7">RRSP room next year: <strong style="color:${C.teal}">${fmt(rrspRoomNext)}</strong><br>CPP: <strong>${sal>0?fmt(Math.min(sal*.0595,3867)):"$0 (no salary)"}</strong></div>
+            <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Full payroll cost — 2026 rates</div>
+            ${(()=>{
+              // CPP1: 5.95% on (salary - $3,500) up to YMPE $74,600 — max employer $4,230
+              const cpp1Base=Math.max(0,Math.min(sal,74600)-3500);
+              const cpp1=Math.round(cpp1Base*0.0595);
+              const cpp1Max=4230;
+              const cpp1Actual=Math.min(cpp1,cpp1Max);
+              // CPP2: 4% on (salary - $74,600) up to YAMPE $85,000 — max employer $416
+              const cpp2Base=Math.max(0,Math.min(sal,85000)-74600);
+              const cpp2=Math.round(cpp2Base*0.04);
+              const cpp2Max=416;
+              const cpp2Actual=Math.min(cpp2,cpp2Max);
+              // EI: 1.4x employee rate — employee 1.66% up to $63,200 — employer 2.324%
+              const eiBase=Math.min(sal,63200);
+              const ei=Math.round(eiBase*0.02324);
+              const totalPayroll=sal+cpp1Actual+cpp2Actual+ei;
+              const divNote=sal===0?"Taking $0 salary eliminates CPP/EI cost but earns no RRSP room and no CPP retirement benefit.":
+                sal<74600?"Salary below $74,600 — CPP2 does not apply.":
+                `Salary above $74,600 — CPP2 applies on $${Math.min(sal,85000)-74600>0?Math.min(sal,85000)-74600:0}.toLocaleString()} earnings band.`;
+              return`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                ${[
+                  {l:"Salary (T4)",v:fmt(sal),c:C.ink},
+                  {l:"CPP1 employer match",v:fmt(cpp1Actual),c:C.slate,sub:"5.95% on $3,500–$74,600"},
+                  {l:"CPP2 employer match",v:cpp2Actual>0?fmt(cpp2Actual):"$0",c:cpp2Actual>0?C.amber:C.slate,sub:cpp2Actual>0?`4% on $${(Math.min(sal,85000)-74600).toLocaleString()} band`:"Salary below $74,600"},
+                  {l:"EI employer premium",v:fmt(ei),c:C.slate,sub:"2.324% on earnings to $63,200"},
+                ].map(r=>`<div style="background:white;border-radius:6px;padding:8px 10px;border:1px solid ${C.border}">
+                  <div style="font-size:10px;color:${C.slate}">${r.l}</div>
+                  <div style="font-size:14px;font-weight:700;color:${r.c};font-family:'DM Mono',monospace">${r.v}</div>
+                  ${r.sub?`<div style="font-size:9.5px;color:${C.slate};margin-top:1px">${r.sub}</div>`:""}
+                </div>`).join("")}
+              </div>
+              <div style="background:${C.navyMid};border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:rgba(255,255,255,.7)">Total employer cost</span>
+                <span style="font-size:15px;font-weight:700;color:white;font-family:'DM Mono',monospace">${fmt(totalPayroll)}</span>
+              </div>
+              <div style="font-size:11px;color:${C.slate};margin-top:7px;line-height:1.5">${divNote}</div>
+              <div style="font-size:11px;color:${C.slate};margin-top:3px">RRSP room next year: <strong style="color:${C.teal}">${fmt(rrspRoomNext)}</strong></div>`;
+            })()}
           </div>
         </div>
         <div>
@@ -1693,35 +1803,262 @@ function renderTaxready(){
     ${recs.map(a=>alertCard(a,"expandedTaxAlert")).join("")}
   </div>`;
 
+  if(S.taxTab==="passive"){
+    const pb=S.form.passiveBreakdown||{interest:0,eligibleDividends:0,capitalGains:0,rental:0,foreign:0};
+    const totalPassive=Object.values(pb).reduce(function(a,b){return a+b;},0);
+    const nerdtoh=S.form.nerdtoh||0;
+    const erdtoh=S.form.erdtoh||0;
+    const cda=S.form.cdaBalance||0;
+    const threshold=50000,clawbackMax=150000;
+    const above=Math.max(0,totalPassive-threshold);
+    const sbdReduction=Math.min(500000,above*5);
+    const sbdTaxCost=Math.round(sbdReduction*0.11);
+
+    // Income type definitions
+    var types=[
+      {key:"interest",label:"Interest income",icon:"🏦",
+       examples:"GICs, savings accounts, bonds, money market",
+       rdtohType:"NERDTOH",rdtohRate:30.67,cdaCredit:false,
+       inclusion:100,clawback:true,
+       effRate:50.67,
+       tip:"Least tax-efficient. Full inclusion, no CDA credit. Consider replacing with eligible dividend-paying equities.",
+       color:"#EF4444",rating:1},
+      {key:"eligibleDividends",label:"Eligible Canadian dividends",icon:"🇨🇦",
+       examples:"Canadian public company shares (Royal Bank, Shopify, BCE)",
+       rdtohType:"ERDTOH",rdtohRate:38.33,cdaCredit:false,
+       inclusion:100,clawback:true,
+       effRate:38.33,
+       tip:"Best passive income type. Entire 38.33% Part IV tax flows to ERDTOH and is refunded on eligible dividend payout. No corporate income tax — only Part IV.",
+       color:"#0E8A7D",rating:5},
+      {key:"capitalGains",label:"Capital gains (portfolio)",icon:"📈",
+       examples:"Sale of equities, real property, investment assets",
+       rdtohType:"NERDTOH",rdtohRate:30.67,cdaCredit:true,
+       inclusion:50,clawback:true,
+       effRate:25.34,
+       tip:"50% inclusion rate below $250K annual gains (2/3 above $250K per Budget 2024). Non-taxable 50% flows to CDA — available for tax-free capital dividend to shareholders.",
+       color:"#7C3AED",rating:4},
+      {key:"rental",label:"Rental income",icon:"🏠",
+       examples:"Investment property — passive if < 5 FTE employees in rental operations",
+       rdtohType:"NERDTOH",rdtohRate:30.67,cdaCredit:false,
+       inclusion:100,clawback:true,
+       effRate:50.67,
+       tip:"May qualify as active business income if >5 FTE employees work in the rental operation — consult CPA. If passive: same treatment as interest income.",
+       color:"#F59E0B",rating:2},
+      {key:"foreign",label:"Foreign investment income",icon:"🌐",
+       examples:"US/international dividends, foreign bond interest",
+       rdtohType:"NERDTOH",rdtohRate:30.67,cdaCredit:false,
+       inclusion:100,clawback:true,
+       effRate:50.67,
+       tip:"15% treaty withholding tax (Canada-US) credited against Canadian corporate tax. Still fully clawback-triggering. Flows to NERDTOH — requires non-eligible dividends to release refund.",
+       color:"#1E3A8A",rating:2},
+    ];
+
+    return`<div class="slide">
+      <div style="margin-bottom:14px">
+        <h1 style="font-size:21px;font-weight:700;color:${C.ink}">Passive Income Intelligence</h1>
+        <p style="font-size:13px;color:${C.slate};margin-top:3px">Not all passive income is equal. Tax treatment, RDTOH account, and planning options differ materially by investment type.</p>
+      </div>
+
+      <!-- Status banner -->
+      <div style="background:${totalPassive>threshold?totalPassive>clawbackMax?C.red:C.amber:C.teal};border-radius:12px;padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:3px">Total passive income ${new Date().getFullYear()}</div>
+          <div style="font-size:28px;font-weight:700;color:white;font-family:'DM Mono',monospace">${fmt(totalPassive)}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px">
+            ${totalPassive<threshold?`$${(threshold-totalPassive).toLocaleString()} below $50K threshold — SBD fully protected`:
+              totalPassive<clawbackMax?`$${above.toLocaleString()} above threshold — SBD reduced by ${fmt(sbdReduction)} — additional tax: ${fmt(sbdTaxCost)}`:
+              `Above $150K — SBD fully eliminated — maximum annual clawback cost: ${fmt(Math.round(500000*0.11))}`}
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          ${[{l:"NERDTOH balance",v:fmt(nerdtoh),s:"Non-eligible div triggers"},{l:"ERDTOH balance",v:fmt(erdtoh),s:"Eligible div triggers"},{l:"CDA balance",v:fmt(cda),s:"Tax-free extraction"}].map(k=>`<div style="background:rgba(255,255,255,.12);border-radius:8px;padding:8px 12px;text-align:center">
+            <div style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:2px">${k.l}</div>
+            <div style="font-size:15px;font-weight:700;color:white;font-family:'DM Mono',monospace">${k.v}</div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,.5);margin-top:1px">${k.s}</div>
+          </div>`).join("")}
+        </div>
+      </div>
+
+      <!-- Composition breakdown -->
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        <div style="padding:10px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:600;color:${C.ink}">Passive income composition — ${new Date().getFullYear()}</div>
+        ${types.filter(function(t){return pb[t.key]>0;}).map(function(t,i,arr){
+          const val=pb[t.key]||0;
+          const pct=totalPassive>0?Math.round(val/totalPassive*100):0;
+          const clawbackAmt=t.clawback?val:0;
+          const rdtohAdd=Math.round(val*(t.rdtohRate/100)*(t.inclusion/100));
+          const cdaAdd=t.cdaCredit?Math.round(val*(1-t.inclusion/100))+" CDA":null;
+          return`<div style="padding:12px 16px;border-bottom:${i<arr.length-1?"1px solid "+C.border:"none"};display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div style="font-size:1.3rem;flex-shrink:0;margin-top:2px">${t.icon}</div>
+            <div style="flex:1;min-width:180px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:600;color:${C.ink}">${t.label}</span>
+                <span style="font-size:10px;background:${t.color}18;color:${t.color};border:1px solid ${t.color}33;padding:1px 7px;border-radius:99px;font-weight:500">Tax efficiency: ${"★".repeat(t.rating)}${"☆".repeat(5-t.rating)}</span>
+                <span style="font-size:10px;color:${C.slate};background:${C.mist};padding:1px 7px;border-radius:99px">${t.rdtohType} @ ${t.rdtohRate}%</span>
+              </div>
+              <div style="font-size:11px;color:${C.slate};margin-bottom:5px">${t.examples}</div>
+              <!-- Bar -->
+              <div style="background:${C.mist};border-radius:99px;height:5px;margin-bottom:5px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${t.color};border-radius:99px"></div></div>
+              <div style="font-size:11px;color:${C.slate};line-height:1.55;background:${t.color}08;border-left:2px solid ${t.color};padding:4px 8px;border-radius:0 4px 4px 0">${t.tip}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;min-width:120px">
+              <div style="font-size:17px;font-weight:700;color:${t.color};font-family:'DM Mono',monospace">${fmt(val)}</div>
+              <div style="font-size:10.5px;color:${C.slate}">${pct}% of total</div>
+              <div style="font-size:10.5px;color:${C.slate};margin-top:3px">Adds ${fmt(rdtohAdd)} to ${t.rdtohType}</div>
+              ${cdaAdd?`<div style="font-size:10.5px;color:${C.teal};font-weight:500">+ ${cdaAdd} credit</div>`:""}
+              ${t.clawback&&val>0?`<div style="font-size:10px;color:${C.red};margin-top:2px">Counts toward $50K clawback</div>`:""}
+            </div>
+          </div>`;
+        }).join("")}
+        ${Object.values(pb).every(function(v){return v===0;})?`<div style="padding:20px;text-align:center;color:${C.slate}">No passive income breakdown available — connect your investment accounts in DataGaps to populate this view automatically.</div>`:""}
+      </div>
+
+      <!-- RDTOH optimiser -->
+      ${(nerdtoh>0||erdtoh>0)?`<div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        <div style="padding:10px 16px;border-bottom:1px solid ${C.border};font-size:13px;font-weight:600;color:${C.ink}">RDTOH refund optimiser — ${fmt(nerdtoh+erdtoh)} total available</div>
+        <div style="padding:13px 16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div style="background:${C.mist};border-radius:9px;padding:11px 14px;border-left:3px solid ${C.amber}">
+              <div style="font-size:11px;font-weight:600;color:${C.amber};margin-bottom:2px">NERDTOH — Non-Eligible RDTOH</div>
+              <div style="font-size:20px;font-weight:700;color:${C.ink};font-family:'DM Mono',monospace">${fmt(nerdtoh)}</div>
+              <div style="font-size:11px;color:${C.slate};margin-top:3px;line-height:1.5">Released by: <strong>non-eligible dividends</strong><br>Source: interest, foreign income, capital gains<br>Required dividend to release: ${fmt(Math.round(nerdtoh/0.3833))}</div>
+            </div>
+            <div style="background:${C.mist};border-radius:9px;padding:11px 14px;border-left:3px solid ${C.teal}">
+              <div style="font-size:11px;font-weight:600;color:${C.teal};margin-bottom:2px">ERDTOH — Eligible RDTOH</div>
+              <div style="font-size:20px;font-weight:700;color:${C.ink};font-family:'DM Mono',monospace">${fmt(erdtoh)}</div>
+              <div style="font-size:11px;color:${C.slate};margin-top:3px;line-height:1.5">Released by: <strong>eligible dividends</strong><br>Source: eligible Canadian dividends received<br>Required dividend to release: ${fmt(Math.round(erdtoh/0.3833))}</div>
+            </div>
+          </div>
+          <div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:9px;padding:11px 14px;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:600;color:${C.green};margin-bottom:4px">Optimal dividend strategy to recover full RDTOH</div>
+            <div style="font-size:12px;color:${C.ink};line-height:1.7">
+              Step 1: Declare <strong>${fmt(Math.round(nerdtoh/0.3833))}</strong> in non-eligible dividends → recovers <strong>${fmt(nerdtoh)}</strong> NERDTOH refund<br>
+              Step 2: Declare <strong>${fmt(Math.round(erdtoh/0.3833))}</strong> in eligible dividends → recovers <strong>${fmt(erdtoh)}</strong> ERDTOH refund<br>
+              Total RDTOH recovered: <strong style="color:${C.green}">${fmt(nerdtoh+erdtoh)}</strong> — received from CRA when T2 is filed
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:${C.slate};line-height:1.6">⚠ Ordering rule (post-2019): NERDTOH must be paid out before ERDTOH when paying dividends. Confirm optimal timing with your CPA — personal tax rate at dividend receipt affects the net benefit.</div>
+        </div>
+      </div>`:""}
+
+      <!-- CDA tracker -->
+      ${cda>0?`<div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        <div style="padding:10px 16px;border-bottom:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;font-weight:600;color:${C.ink}">Capital Dividend Account (CDA)</span>
+          <span style="background:${C.greenLt};color:${C.green};font-size:11px;font-weight:600;padding:2px 10px;border-radius:99px">${fmt(cda)} available tax-free</span>
+        </div>
+        <div style="padding:13px 16px">
+          <div style="font-size:12.5px;color:${C.ink};line-height:1.7;margin-bottom:10px">The CDA tracks the non-taxable portion of all capital gains realised inside the corporation. The current balance of <strong style="color:${C.teal}">${fmt(cda)}</strong> can be paid out as a <strong>capital dividend</strong> — entirely tax-free to individual shareholders — by filing an election under ITA s. 83(2) before the dividend is declared.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            ${[{l:"CDA balance available",v:fmt(cda),s:"Tax-free extraction ready",c:C.green},
+               {l:"Tax saved vs. regular dividend",v:fmt(Math.round(cda*0.44)),s:"At 44% personal marginal rate",c:C.teal}].map(k=>`<div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:8px;padding:10px 12px">
+              <div style="font-size:11px;color:${C.green};margin-bottom:2px">${k.l}</div>
+              <div style="font-size:17px;font-weight:700;color:${k.c};font-family:'DM Mono',monospace">${k.v}</div>
+              <div style="font-size:10.5px;color:${C.slate};margin-top:1px">${k.s}</div>
+            </div>`).join("")}
+          </div>
+          <div style="font-size:11.5px;color:${C.slate}">CRA form T2054 (Election re Capital Dividend) must be filed with the corporate T2 before or concurrently with the capital dividend declaration. File after consulting your CPA.</div>
+        </div>
+      </div>`:""}
+
+      <!-- Recommendations -->
+      <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px">
+        <div style="font-size:13px;font-weight:600;color:white;margin-bottom:10px">Elevare Advisor — passive income restructuring recommendations</div>
+        ${(function(){
+          var recs=[];
+          if((pb.interest||0)>5000) recs.push({icon:"💡",title:"Reduce interest-bearing holdings inside the corporation",action:"Consider shifting "+(pb.interest>10000?(fmt(Math.round(pb.interest*0.5))+" of "):"")+"GIC/savings capital to a diversified Canadian equity portfolio. This converts fully-clawback-triggering interest (NERDTOH only) to eligible dividends (ERDTOH 38.33%). Estimated SBD protection gain: "+fmt(Math.round((pb.interest||0)*5*0.11))+" annually.",c:"#FCD34D"});
+          if((pb.capitalGains||0)>0) recs.push({icon:"📋",title:"Capital dividend election — extract CDA balance tax-free",action:"Your CDA balance of "+fmt(cda)+" represents the non-taxable portion of prior capital gains. File T2054 with your CPA to declare a capital dividend before year-end — "+fmt(Math.round(cda*0.44))+" in tax saved vs. taking the same amount as a regular dividend.",c:"#A7F3D0"});
+          if(nerdtoh+erdtoh>0) recs.push({icon:"🔄",title:"Optimal dividend mix to recover "+fmt(nerdtoh+erdtoh)+" RDTOH before year-end",action:"Declare non-eligible dividends of "+fmt(Math.round(nerdtoh/0.3833))+" first (NERDTOH ordering rule) then eligible dividends of "+fmt(Math.round(erdtoh/0.3833))+". Full RDTOH recovery of "+fmt(nerdtoh+erdtoh)+" reduces your effective passive income tax rate materially.",c:"#12B3A3"});
+          if(totalPassive>threshold) recs.push({icon:"⚠",title:"SBD clawback active — "+fmt(sbdTaxCost)+" additional tax locked after December 31",action:"To reduce next year's clawback: (1) increase salary to reduce retained earnings available for investment, (2) deploy corporate cash into active business assets rather than passive investments, (3) consider COLI policy premium — reduces corporate investment assets. Act before December 31.",c:"#FCA5A5"});
+          if(recs.length===0) recs.push({icon:"✓",title:"Passive income composition is well-optimised",action:"Your current mix of eligible dividends and capital gains is the most tax-efficient passive income structure available inside a CCPC. Continue monitoring as investment balances grow.",c:"#A7F3D0"});
+          return recs.map(function(r){
+            return "<div style='background:rgba(255,255,255,.06);border-left:3px solid "+r.c+";border-radius:9px;padding:11px 14px;margin-bottom:8px;display:flex;gap:10px'>"
+              +"<span style='font-size:15px;flex-shrink:0'>"+r.icon+"</span>"
+              +"<div><div style='font-size:12.5px;font-weight:600;color:white;margin-bottom:3px'>"+r.title+"</div>"
+              +"<div style='font-size:11.5px;color:rgba(255,255,255,.6);line-height:1.6'>"+r.action+"</div></div></div>";
+          }).join("");
+        })()}
+      </div>
+    </div>`;
+  }
+
   if(S.taxTab==="yearend"){
+    const sal=+(S.form.salary)||95000;
+    const emp=+(S.form.employees)||8;
+    // CPP2 applies on salary between $74,600 and $85,000 at 4%
+    const cpp2Applies=sal>74600;
+    // Estimate how many employees may be above CPP2 threshold (simplified)
+    const empAboveCpp2=Math.min(emp,Math.max(1,Math.floor(emp*0.4)));
+    const eiSavingEstimate=empAboveCpp2*600; // ~$600/employee if STD plan qualifies
     const checklist=[
-      {done:rc>rr*.8,l:"RRSP contribution optimized",s:`${fmt(rc)} of ${fmt(rr)} room used`},
-      {done:inc<TAX.sbd*.95,l:"Income below SBD limit",s:`${fmt(inc)} vs ${fmtK(TAX.sbd)} — ${fmt(TAX.sbd-inc)} remaining`},
-      {done:pass<TAX.passiveLo,l:"Passive income below clawback threshold",s:pass<TAX.passiveLo?`${fmt(pass)} — safe`:`${fmt(pass)} — above $50K threshold`},
-      {done:false,l:"Salary/dividend split reviewed for this year",s:"Review with Elevare Global before December"},
-      {done:false,l:"Capital equipment purchases timed",s:"Purchase before year-end for full deduction"},
-      {done:false,l:"Year-end bonus timing confirmed",s:"Salary must be paid or accrued before Dec 31"},
-      {done:false,l:"Year-end meeting booked with Elevare Global",s:"30-minute review — book before Nov 30"},
+      {done:+(S.form.rrspContrib||0)>+(S.form.rrspRoom||0)*.8,l:"RRSP contribution optimized",s:`${fmt(+(S.form.rrspContrib||0))} of ${fmt(+(S.form.rrspRoom||0))} room used`,cat:"Tax"},
+      {done:+(S.form.income||0)<500000*.95,l:"Income below SBD limit",s:`${fmt(+(S.form.income||0))} vs $500,000 — ${fmt(500000-(+(S.form.income||0)))} remaining`,cat:"Tax"},
+      {done:+(S.form.passive||0)<50000,l:"Passive income below clawback threshold",s:+(S.form.passive||0)<50000?`${fmt(+(S.form.passive||0))} — safe`:`${fmt(+(S.form.passive||0))} — above $50K — SBD reduced by ${fmt(Math.round((+(S.form.passive||0)-50000)*5))}`,cat:"Tax"},
+      {done:false,l:"Salary/dividend split reviewed at current income level",s:"Review with Elevare Global before December — salary changes must be processed in payroll before Dec 31",cat:"Tax"},
+      {done:false,l:"Capital equipment purchases timed for maximum CCA",s:"Purchase before year-end for half-year rule deduction in current fiscal year",cat:"Tax"},
+      {done:false,l:"Year-end bonus declared and paid (or accrued within 180 days)",s:"Management bonus must be paid by June 30, 2027 to be deductible in 2026 fiscal year",cat:"Tax"},
+      // ── PAYROLL COMPLIANCE ITEMS ──────────────────────────────────────────────
+      {done:false,l:"T4 slips filed with CRA — deadline February 28, 2027",s:`T4 Box 16A (CPP2) must be disaggregated — confirm payroll software generating CPP2-compliant T4s for all ${emp} employees`,cat:"Payroll",penalty:"$10/slip/day late — max $1,000 for first 100 slips"},
+      {done:false,l:"Payroll remittances reconciled against CRA payroll account (RP account)",s:"T4 employment income + CPP + EI must match CRA My Business Account remittance records exactly. Discrepancies trigger assessments.",cat:"Payroll",penalty:"3% penalty for even one day late — escalates to 10% after 7 days"},
+      {done:cpp2Applies===false,l:`CPP2 rate confirmed at 4.00% (not 5.95%) on salary band $74,600–$85,000`,s:cpp2Applies?`Your salary of ${fmt(sal)} crosses the CPP2 threshold. Confirm payroll software applies 4.00% on the $${(Math.min(sal,85000)-74600).toLocaleString()} band — using 5.95% over-deducts $${Math.round((Math.min(sal,85000)-74600)*0.0195).toLocaleString()} per employee and requires T4 corrections.`:"Salary below $74,600 — CPP2 does not apply",cat:"Payroll",penalty:"Over-withholding requires T4 amendments and employee refunds"},
+      {done:false,l:"Taxable benefits added to pensionable earnings",s:"Group life insurance >$25K coverage, personal vehicle use, employer-paid parking must be included in T4 Box 14 employment income and used in CPP/EI calculations",cat:"Payroll",penalty:"Missing taxable benefits cause T4 amendments and CRA reassessments"},
+      {done:false,l:"EI reduced premium eligibility assessed",s:`If you offer a qualifying short-term disability plan, you may qualify for reduced EI employer rate (below 1.4× employee premium). Potential saving: ~${fmt(eiSavingEstimate)}/year across your team. Apply to Service Canada before January 1.`,cat:"Payroll",penalty:"Overpaying EI by $400–$800/employee — non-recoverable after year-end"},
+      {done:false,l:"Contractor vs. employee classification reviewed",s:"Any contractor working exclusively or primarily for your company for 12+ months carries CRA reclassification risk — retroactive CPP, EI, and income tax for all past pay periods plus penalties",cat:"Payroll",penalty:"Retroactive CPP + EI + income tax + penalties — can reach $18,000/year per reclassified worker"},
+      {done:false,l:"Year-end meeting booked with Elevare Global",s:"30-minute review — book before Nov 30",cat:"Advisory"},
     ];
     const done=checklist.filter(i=>i.done).length;
+    const payrollItems=checklist.filter(i=>i.cat==="Payroll");
+    const taxItems=checklist.filter(i=>i.cat==="Tax");
+    const payrollDone=payrollItems.filter(i=>i.done).length;
+    const taxDone=taxItems.filter(i=>i.done).length;
     return`<div class="slide">
       <div style="margin-bottom:16px"><h1 style="font-size:21px;font-weight:700;color:${C.ink}">Year-End Planning</h1><p style="font-size:13px;color:${C.slate};margin-top:3px">68 days until Dec 31 · ${done} of ${checklist.length} items complete</p></div>
-      <div style="background:${C.amber};border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div style="background:${C.amber};border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div><div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Year-end countdown</div><div style="font-size:28px;font-weight:700;color:white;font-family:'DM Mono',monospace">68 <span style="font-size:16px;font-weight:400">days</span></div></div>
-        <div style="display:flex;gap:16px"><div style="text-align:center"><div style="font-size:11px;color:rgba(255,255,255,.7)">Done</div><div style="font-size:20px;font-weight:600;color:white">${done}/${checklist.length}</div></div><div style="text-align:center"><div style="font-size:11px;color:rgba(255,255,255,.7)">Est. savings left</div><div style="font-size:20px;font-weight:600;color:white">${fmtK((checklist.length-done)*6000)}</div></div></div>
+        <div style="display:flex;gap:20px">
+          <div style="text-align:center"><div style="font-size:11px;color:rgba(255,255,255,.7)">Tax items</div><div style="font-size:20px;font-weight:600;color:white">${taxDone}/${taxItems.length}</div></div>
+          <div style="text-align:center"><div style="font-size:11px;color:rgba(255,255,255,.7)">Payroll items</div><div style="font-size:20px;font-weight:600;color:${payrollDone===payrollItems.length?"#A7F3D0":"#FCA5A5"}">${payrollDone}/${payrollItems.length}</div></div>
+          <div style="text-align:center"><div style="font-size:11px;color:rgba(255,255,255,.7)">Total</div><div style="font-size:20px;font-weight:600;color:white">${done}/${checklist.length}</div></div>
+        </div>
       </div>
-      <div class="card" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:${C.ink}">Year-end checklist</span><span style="font-size:12px;color:${C.slate}">${Math.round(done/checklist.length*100)}% complete</span></div>
-        <div style="background:${C.border};border-radius:99px;height:7px;margin-bottom:14px;overflow:hidden"><div style="width:${Math.round(done/checklist.length*100)}%;height:100%;background:${C.teal};border-radius:99px"></div></div>
-        ${checklist.map((item,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:${i<checklist.length-1?`1px solid ${C.border}`:"none"}">
+
+      <!-- Progress -->
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:600;color:${C.ink}">Overall completion</span><span style="font-size:12px;color:${C.slate}">${Math.round(done/checklist.length*100)}%</span></div>
+        <div style="background:${C.border};border-radius:99px;height:7px;overflow:hidden"><div style="width:${Math.round(done/checklist.length*100)}%;height:100%;background:${C.teal};border-radius:99px"></div></div>
+      </div>
+
+      <!-- TAX ITEMS -->
+      <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Tax optimisation — ${taxDone}/${taxItems.length} complete</div>
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        ${taxItems.map((item,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:${i<taxItems.length-1?`1px solid ${C.border}`:"none"};background:${i%2===0?"white":C.mist}">
           <div style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${item.done?C.teal:C.border};display:flex;align-items:center;justify-content:center;margin-top:1px">
             ${item.done?`<span style="color:white;font-size:10px;font-weight:700">✓</span>`:`<span style="color:${C.slate};font-size:9px">${i+1}</span>`}
           </div>
           <div style="flex:1"><div style="font-size:13px;font-weight:500;color:${item.done?C.slate:C.ink};${item.done?"text-decoration:line-through":""}">${item.l}</div><div style="font-size:11.5px;color:${C.slate};margin-top:2px">${item.s}</div></div>
         </div>`).join("")}
       </div>
-      <div style="background:${C.sky};border:1px solid ${C.tealLt};border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <div><div style="font-size:13px;font-weight:600;color:${C.teal}">Lock in your year-end tax savings</div><div style="font-size:12px;color:${C.ink};margin-top:2px">Book your complimentary 30-min review with Elevare Global before November 30.</div></div>
+
+      <!-- PAYROLL COMPLIANCE ITEMS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.06em">Payroll compliance — ${payrollDone}/${payrollItems.length} complete</span>
+        ${payrollDone<payrollItems.length?`<span style="background:${C.redLt};color:${C.red};font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px">⚠ Action required</span>`:`<span style="background:${C.greenLt};color:${C.green};font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px">✓ All clear</span>`}
+      </div>
+      <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:14px">
+        ${payrollItems.map((item,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:${i<payrollItems.length-1?`1px solid ${C.border}`:"none"};background:${item.done?C.greenLt:(i%2===0?"white":C.mist)}">
+          <div style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:${item.done?C.green:C.red+"44"};display:flex;align-items:center;justify-content:center;margin-top:1px">
+            ${item.done?`<span style="color:white;font-size:10px;font-weight:700">✓</span>`:`<span style="color:${C.red};font-size:11px">!</span>`}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500;color:${item.done?C.slate:C.ink};${item.done?"text-decoration:line-through":""}">${item.l}</div>
+            <div style="font-size:11.5px;color:${C.slate};margin-top:2px">${item.s}</div>
+            ${item.penalty&&!item.done?`<div style="font-size:10.5px;color:${C.red};margin-top:3px;font-weight:500">Penalty: ${item.penalty}</div>`:""}
+          </div>
+        </div>`).join("")}
+      </div>
+
+      <div style="background:${C.sky};border:1px solid ${C.tealLt};border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:13px;font-weight:600;color:${C.teal}">Lock in your year-end savings</div><div style="font-size:12px;color:${C.ink};margin-top:2px">Book your complimentary 30-min year-end review with Elevare Global before November 30.</div></div>
         <button onclick="setState({screen:'settings',settingsTab:'advisor'})" style="background:${C.teal};color:white;border:none;border-radius:7px;padding:9px 16px;font-size:12px;font-weight:600">Book year-end review →</button>
       </div>
     </div>`;
@@ -1855,6 +2192,51 @@ function renderSettings(){
         <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:10px">Session history</div>
         ${[{d:"Oct 14, 2026",t:"Year-end planning review",dur:"32 min",n:"Salary/dividend split · COLI strategy discussed"},{d:"Aug 22, 2026",t:"Cash flow strategy session",dur:"28 min",n:"LOC pre-arrangement · Seasonal buffer planning"},{d:"Jun 5, 2026",t:"Mid-year tax check-in",dur:"20 min",n:"SBD monitoring · Passive income warning"}].map(s=>`<div style="padding:10px 0;border-bottom:.5px solid ${C.border}"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:12.5px;font-weight:500;color:${C.ink}">${s.t}</span><span style="font-size:11px;color:${C.slate}">${s.dur}</span></div><div style="font-size:11px;color:${C.slate}">${s.d} · ${s.n}</div></div>`).join("")}
       </div>`;
+    if(S.settingsTab==="agent"){
+      var agentSecs=[
+        {cat:"Grant applications",icon:"\uD83C\uDFDB\uFE0F",acts:["WorkBC (pre-filled, you approve to submit)","CanExport claims (expense docs compiled, you approve)","SR&ED package assembly","CSBFP readiness package"],mode:"Mode 2",on:true},
+        {cat:"Tax actions",icon:"\u25C9",acts:["Year-end CPA package (auto-generated November 1)","Salary adjustment instructions for payroll","RDTOH dividend timing analysis","CPP2 compliance check"],mode:"Mode 2",on:true},
+        {cat:"Cash flow alerts",icon:"\u25C8",acts:["14-day advance crisis warning","GST/HST remittance pre-notice","Line of credit reminder draft"],mode:"Mode 1+2",on:true},
+        {cat:"Auto-execute — Phase 3 (disabled)",icon:"\u26A1",acts:["Regulatory calendar updates","Monthly data sync","Grant deadline alerts (30/7/1 days)"],mode:"Mode 3",on:false},
+      ];
+      var permHtml=agentSecs.map(function(s,si){
+        var pills=s.acts.map(function(a){
+          return "<span style='font-size:11px;background:"+C.mist+";border:1px solid "+C.border+";border-radius:6px;padding:2px 8px;color:"+C.slate+"'>"+a+"</span>";
+        }).join("");
+        var tog="<div style='width:36px;height:20px;border-radius:99px;background:"+(s.on?C.teal:C.border)+";position:relative'><div style='width:16px;height:16px;border-radius:50%;background:white;position:absolute;top:2px;"+(s.on?"right:2px":"left:2px")+"'></div></div>";
+        return "<div style='border-bottom:"+(si<3?"1px solid "+C.border:"none")+";padding:12px 16px;background:"+(s.on?"white":C.mist)+"'>"
+          +"<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:7px'>"
+          +"<div style='display:flex;align-items:center;gap:7px'>"
+          +"<span>"+s.icon+"</span>"
+          +"<span style='font-size:12.5px;font-weight:600;color:"+(s.on?C.ink:C.slate)+"'>"+s.cat+"</span>"
+          +"<span style='font-size:10px;background:"+(s.on?"rgba(14,138,125,.1)":"rgba(100,116,139,.1)")+";color:"+(s.on?C.teal:C.slate)+";padding:1px 7px;border-radius:99px'>"+s.mode+"</span>"
+          +"</div><div style='display:flex;align-items:center;gap:6px'>"
+          +"<span style='font-size:11px;color:"+(s.on?C.teal:C.slate)+"'>"+(s.on?"Enabled":"Disabled")+"</span>"+tog
+          +"</div></div><div style='display:flex;flex-wrap:wrap;gap:5px'>"+pills+"</div></div>";
+      }).join("");
+      var limHtml=["Move money or initiate payments","Submit to CRA without per-submission approval","Communicate with your bank autonomously","Submit grant forms without your review","Any irreversible financial action autonomously","Access accounts outside Elevare integrations"].map(function(l){
+        return "<div style='display:flex;gap:5px'><span style='color:"+C.red+"'>\u2717</span><span style='font-size:11.5px;color:"+C.ink+"'>"+l+"</span></div>";
+      }).join("");
+      return "<div>"
+        +"<h3 style='font-size:16px;font-weight:500;color:"+C.ink+";margin-bottom:4px'>\uD83E\uDD16 Elevare Advisor \u2014 AI Agent Settings</h3>"
+        +"<p style='font-size:12px;color:"+C.slate+";margin-bottom:14px'>Control what the agent can do on your behalf. All Mode 2 actions require your explicit approval before anything is submitted.</p>"
+        +"<div style='background:"+C.navyMid+";border-radius:12px;padding:14px 16px;margin-bottom:14px'>"
+          +"<div style='font-size:12px;font-weight:600;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px'>Current agent mode</div>"
+          +"<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'>"
+            +"<div style='background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 12px'><div style='font-size:11px;font-weight:700;color:#64748B;margin-bottom:3px'>Mode 1</div><div style='font-size:12px;font-weight:600;color:white'>Monitor + Alert</div><div style='font-size:10.5px;color:rgba(255,255,255,.45);margin-top:2px'>Watch data, fire alerts. No execution.</div></div>"
+            +"<div style='background:rgba(14,138,125,.2);border:1.5px solid #0E8A7D;border-radius:9px;padding:10px 12px'><div style='font-size:11px;font-weight:700;color:#0E8A7D;margin-bottom:3px'>Mode 2 ✓ Active</div><div style='font-size:12px;font-weight:600;color:white'>Prepare + Present</div><div style='font-size:10.5px;color:rgba(255,255,255,.45);margin-top:2px'>Draft actions for approval. Nothing submitted without your click.</div></div>"
+            +"<div style='background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:10px 12px;opacity:.45'><div style='font-size:11px;font-weight:700;color:#374151;margin-bottom:3px'>Mode 3</div><div style='font-size:12px;font-weight:600;color:white'>Auto-execute</div><div style='font-size:10.5px;color:rgba(255,255,255,.45);margin-top:2px'>Pre-approved low-risk actions.</div><div style='font-size:10px;color:rgba(255,255,255,.3);margin-top:4px'>Coming Phase 3 \u2014 2027</div></div>"
+          +"</div>"
+        +"</div>"
+        +"<div style='background:white;border:1px solid "+C.border+";border-radius:12px;overflow:hidden;margin-bottom:14px'>"
+          +"<div style='padding:11px 16px;border-bottom:1px solid "+C.border+";font-size:13px;font-weight:600;color:"+C.ink+"'>Action permissions</div>"
+          +permHtml
+        +"</div>"
+        +"<div style='background:"+C.redLt+";border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px'>"
+          +"<div style='font-size:12.5px;font-weight:600;color:"+C.red+";margin-bottom:6px'>Permanent limits \u2014 Elevare Advisor can never do these</div>"
+          +"<div style='display:grid;grid-template-columns:1fr 1fr;gap:5px'>"+limHtml+"</div>"
+        +"</div>"
+      +"</div>";}
     return"";
   };
 
@@ -1862,7 +2244,7 @@ function renderSettings(){
     <div style="margin-bottom:16px"><h1 style="font-size:21px;font-weight:700;color:${C.ink}">Settings</h1><p style="font-size:13px;color:${C.slate};margin-top:3px">Manage your account, integrations, and preferences</p></div>
     <div style="display:grid;grid-template-columns:180px 1fr;gap:14px">
       <div class="settings-sidebar">
-        ${["profile","notifications","integrations","subscription","advisor"].map(t=>`<button class="settings-tab${S.settingsTab===t?" active":""}" onclick="setState({settingsTab:'${t}',settingsSaved:false})">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join("")}
+        ${["profile","notifications","integrations","subscription","advisor","agent"].map(t=>`<button class="settings-tab${S.settingsTab===t?" active":""}" onclick="setState({settingsTab:'${t}',settingsSaved:false})">${t==="agent"?"🤖 AI Agent":t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join("")}
       </div>
       <div class="card">${content()}</div>
     </div>
@@ -1955,18 +2337,19 @@ const NAV_SCREENS=[
   {id:"landing",label:"Landing"},
   {id:"onboard",label:"Onboard",sub:null},
   {id:"home",label:"Home"},
-  {id:"cashflow",label:"CashFlow",subs:[["dashboard","Dashboard"],["alerts","Alerts"],["receivables","Receivables"],["scenarios","Scenarios"],["cards","Cards"]]},
-  {id:"taxready",label:"TaxReady",subs:[["overview","Overview"],["optimizer","Optimizer"],["alerts","Tax Alerts"],["yearend","Year-end"]]},
-  {id:"invoice",label:"InvoiceVault",subs:[["ivdash","Dashboard"],["ivinv","Invoices"],["ivbills","Bills"],["ivreceipts","Receipts"],["ivgst","GST/HST"],["ivcreate","+ Create"]]},
+  {id:"taxready",label:"TaxReady",subs:[["overview","Overview"],["optimizer","Optimizer"],["passive","Passive Income"],["alerts","Tax Alerts"],["yearend","Year-end"]]},
   {id:"grants",label:"GrantsReady",subs:[["grdash","Dashboard"],["greligible","My Matches"],["grstack","Stack Planner"],["grtracker","Tracker"],["grcalendar","Deadlines"]]},
-  {id:"multico",label:"MultiCo",subs:[["mcdash","Dashboard"],["mcsbd","SBD Planner"],["mcpassive","Passive Income"],["mcholdco","HoldCo Strategy"]]},
-  {id:"datagaps",label:"DataGaps",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgroi","ROI Calculator"]]},
-  {id:"profitpilot",label:"ProfitPilot",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["ppvendor","Vendor Audit"],["ppbenchmark","Benchmarks"]]},
-  {id:"planninghub",label:"PlanningHub",subs:[["phbuysell","Buy/Sell Agreement"],["phdebt","Debt & Repayment Risk"],["phparter","Partnership Impact"]]},
   {id:"intelligence",label:"Intelligence OS",subs:[["iosdecision","Decision Log"],["iosoutcomes","Outcomes Dashboard"],["ioscal","Regulatory Calendar"],["ioscra","CRA File"],["iosprofile","Living Profile"],["iosnetwork","Network Intel"]]},
-  {id:"cpaconnect",label:"CPA Connect",subs:[["cpaDash","Overview"],["cpaExport","Tax Package"],["cpaHistory","Export History"],["cpaPerms","Permissions"]]},
+  {id:"cashflow",label:"CashFlow Pilot",subs:[["dashboard","Dashboard"],["alerts","Alerts"],["receivables","Receivables"],["scenarios","Scenarios"],["cards","Cards"]]},
+  {id:"cpaconnect",label:"CPA Connect",subs:[["cpaDash","Overview"],["cpaExport","Tax Package"],["cpaHistory","Export History"],["cpaPerms","Permissions"],["cpaPartner","Partner Portal"]]},
+  {id:"multico",label:"MultiCo",subs:[["mcdash","Dashboard"],["mcsbd","SBD Planner"],["mcpassive","Passive Income"],["mcholdco","HoldCo Strategy"]]},
+  {id:"invoice",label:"InvoiceVault",subs:[["ivdash","Dashboard"],["ivinv","Invoices"],["ivbills","Bills"],["ivreceipts","Receipts"],["ivgst","GST/HST"],["ivcreate","+ Create"]]},
+  {id:"profitpilot",label:"Profit Intel",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["ppvendor","Vendor Audit"],["ppbenchmark","Benchmarks"]]},
+  {id:"planninghub",label:"Exit & Planning",subs:[["phbuysell","Buy/Sell Agreement"],["phdebt","Debt & Repayment Risk"],["phparter","Partnership Impact"]]},
+  {id:"datagaps",label:"Data Intelligence",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgerp","ERP Connector"],["dgroi","ROI Calculator"]]},
+  {id:"freetools",label:"Free Tools",subs:[["ft-salary","Salary Optimizer"],["ft-grants","Grant Scan"],["ft-passive","Passive Income"],["ft-payroll","Payroll Check"],["ft-cashflow","Cash Stress Test"],["ft-qsbc","QSBC Health"],["ft-cpa","CPA Preview"]]},
   {id:"mobile",label:"Mobile"},
-  {id:"settings",label:"Settings",subs:[["profile","Profile"],["notifications","Notifications"],["integrations","Integrations"],["subscription","Subscription"],["advisor","Advisor"]]},
+  {id:"settings",label:"Settings",subs:[["profile","Profile"],["notifications","Notifications"],["integrations","Integrations"],["subscription","Subscription"],["advisor","Advisor"],["agent","AI Agent"]]},
 ];
 
 function renderNav(){
@@ -1976,7 +2359,7 @@ function renderNav(){
   const total=critCount+taxHigh;
 
   document.getElementById("main-tabs").innerHTML=NAV_SCREENS.map(n=>`
-    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')" ${n.id==="cpaconnect"&&S.screen!==n.id?`style="border:1px solid rgba(14,138,125,.3);color:rgba(14,138,125,.8)"`:""}>${n.id==="cpaconnect"?"⚡ "+n.label:n.label}</button>
+    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')" ${n.id==="cpaconnect"&&S.screen!==n.id?`style="border:1px solid rgba(14,138,125,.3);color:rgba(14,138,125,.8)"`:n.id==="freetools"&&S.screen!==n.id?`style="border:1px solid rgba(234,179,8,.4);color:rgba(234,179,8,.8)"`:""}>${n.id==="cpaconnect"?"⚡ "+n.label:n.id==="freetools"?"🆓 "+n.label:n.label}</button>
   `).join("");
   // Auto-scroll active tab into view
   const activeBtn=document.querySelector(".nav-tab.active");
@@ -1991,7 +2374,7 @@ function renderNav(){
   const subTabsEl=document.getElementById("sub-tabs");
   if(cur&&cur.subs&&S.screen!=="onboard"){
     subNav.style.display="block";
-    const subKey=S.screen==="cashflow"?"cashTab":S.screen==="taxready"?"taxTab":S.screen==="invoice"?"ivTab":S.screen==="grants"?"grTab":S.screen==="multico"?"mcTab":S.screen==="datagaps"?"dgTab":S.screen==="profitpilot"?"ppTab":S.screen==="planninghub"?"phTab":S.screen==="intelligence"?"iosTab":S.screen==="cpaconnect"?"cpaTab":"settingsTab";
+    const subKey=S.screen==="cashflow"?"cashTab":S.screen==="taxready"?"taxTab":S.screen==="invoice"?"ivTab":S.screen==="grants"?"grTab":S.screen==="multico"?"mcTab":S.screen==="datagaps"?"dgTab":S.screen==="profitpilot"?"ppTab":S.screen==="planninghub"?"phTab":S.screen==="intelligence"?"iosTab":S.screen==="cpaconnect"?"cpaTab":S.screen==="freetools"?"ftTab":"settingsTab";
     subTabsEl.innerHTML=cur.subs.map(([id,label])=>`
       <button class="sub-tab${S[subKey]===id?" active":""}" onclick="setState({${subKey}:'${id}'})">${label}</button>
     `).join("");
@@ -2001,7 +2384,7 @@ function renderNav(){
 }
 
 function navigateTo(id){
-  const defaults={cashflow:{cashTab:"dashboard"},taxready:{taxTab:"overview"},invoice:{ivTab:"ivdash"},grants:{grTab:"grdash"},multico:{mcTab:"mcdash"},datagaps:{dgTab:"dgdash"},profitpilot:{ppTab:"ppdash"},planninghub:{phTab:"phbuysell"},intelligence:{iosTab:"iosdecision"},cpaconnect:{cpaTab:"cpaDash"},settings:{settingsTab:"profile"},onboard:{onboardStep:"welcome",goals5Step:"goals",selectedTasks:[]}};
+  const defaults={cashflow:{cashTab:"dashboard"},taxready:{taxTab:"overview"},invoice:{ivTab:"ivdash"},grants:{grTab:"grdash"},multico:{mcTab:"mcdash"},datagaps:{dgTab:"dgdash"},profitpilot:{ppTab:"ppdash"},planninghub:{phTab:"phbuysell"},intelligence:{iosTab:"iosdecision"},cpaconnect:{cpaTab:"cpaDash"},freetools:{ftTab:"ft-salary"},settings:{settingsTab:"profile"},onboard:{onboardStep:"welcome",goals5Step:"goals",selectedTasks:[]}};
   setState(Object.assign({screen:id},defaults[id]||{}));
 }
 
@@ -2029,6 +2412,7 @@ function render(){
     planninghub:renderPlanningHub,
     intelligence:renderIntelligenceOS,
     cpaconnect:renderCPAConnect,
+    freetools:renderFreeTools,
     advisor:renderAdvisor,
     mobile:renderMobilePreview,
     settings:renderSettings,
@@ -2451,6 +2835,38 @@ function renderHome(){
         <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">${m.s}</div>
       </div>`).join("")}
     </div>
+
+    <!-- VALUE TIMELINE — continuous monitoring makes this possible ─────────── -->
+    ${(()=>{
+      const verifiedD=activeD.filter(d=>d.verified&&d.actualSaving>0).sort((a,b)=>new Date(b.date)-new Date(a.date));
+      if(verifiedD.length===0) return "";
+      const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      // Build monthly buckets for chart
+      const monthBuckets={};
+      verifiedD.forEach(d=>{
+        const dt=new Date(d.date);
+        const key=months[dt.getMonth()]+" "+(dt.getFullYear().toString().slice(2));
+        monthBuckets[key]=(monthBuckets[key]||0)+d.actualSaving;
+      });
+      const maxVal=Math.max(...Object.values(monthBuckets));
+      return`<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em">Value captured — month by month</div>
+          <button onclick="setState({screen:'intelligence',iosTab:'iosoutcomes'})" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:3px 9px;font-size:10px;color:rgba(255,255,255,.5);cursor:pointer">Full breakdown →</button>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:52px">
+          ${Object.entries(monthBuckets).map(([month,val])=>{
+            const pct=Math.round((val/maxVal)*100);
+            return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+              <div style="font-size:9px;color:rgba(255,255,255,.5);font-family:'DM Mono',monospace;white-space:nowrap">$${val>=1000?(val/1000).toFixed(0)+"K":val}</div>
+              <div style="width:100%;border-radius:3px 3px 0 0;background:linear-gradient(to top,rgba(14,138,125,.9),rgba(18,179,163,.6));min-height:4px;height:${Math.max(4,Math.round(pct*.44))}px"></div>
+              <div style="font-size:9px;color:rgba(255,255,255,.35)">${month}</div>
+            </div>`;
+          }).join("")}
+        </div>
+        <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:8px;line-height:1.5">Each bar = a verified saving captured by Elevare's continuous monitoring. Alerts fired between your annual accountant meetings.</div>
+      </div>`;
+    })()}
   </div>
 
   <!-- DECISION PROMPT — surfaces the most urgent action ─────────────────── -->
@@ -2490,6 +2906,36 @@ function renderHome(){
         <div style="font-size:11px;color:${C.slate};line-height:1.5">Phase 2 module: Cross-border income attribution, PE income split, QSBC eligibility monitor, and US subsidiary FAPI detection. Available Q1 2027.</div>
       </div>
       <button onclick="setState({screen:'grants',grTab:'grdash'})" style="background:${C.teal};color:white;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0">CanExport →</button>
+    </div>
+  </div>`:""}
+
+  <!-- ERP INTELLIGENCE BANNER — fires when revenue suggests ERP use ────────── -->
+  ${+(S.form.revenue||0)>=5000000?`
+  <div style="background:linear-gradient(135deg,rgba(30,58,138,.15),rgba(13,33,55,.3));border:1px solid rgba(30,58,138,.3);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="font-size:16px;flex-shrink:0">⬛</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:4px">ERP Intelligence available — connect your ERP for full CCPC intelligence</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.navyMid};margin-bottom:2px">QSBC Asset Test</div>
+            <div style="font-size:11px;color:${C.ink}">Fixed asset register → <strong>90% test</strong></div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">Protects $1,275,000 LCGE on exit</div>
+          </div>
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.navyMid};margin-bottom:2px">Multi-entity P&L</div>
+            <div style="font-size:11px;color:${C.ink}">ERP intercompany → <strong>true SBD</strong></div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">T2SCH23A allocation from verified data</div>
+          </div>
+          <div style="background:rgba(255,255,255,.6);border-radius:7px;padding:8px 10px">
+            <div style="font-size:11px;font-weight:600;color:${C.navyMid};margin-bottom:2px">Verified payroll</div>
+            <div style="font-size:11px;color:${C.ink}">ERP HR module → <strong>T4 reconciliation</strong></div>
+            <div style="font-size:10px;color:${C.slate};margin-top:1px">CPP2 verified · T4 Box 16A confirmed</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:${C.slate};line-height:1.5">Supports: Business Central · SAP Business One · NetSuite · Sage Intacct · Oracle Fusion. Start now with CSV upload — live API connector in Phase 3 (2027).</div>
+      </div>
+      <button onclick="setState({screen:'datagaps',dgTab:'dgerp'})" style="background:${C.navyMid};color:white;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0">ERP setup →</button>
     </div>
   </div>`:""}`;
 
@@ -3093,6 +3539,34 @@ const GRANTS_DB=[
    cashImpact:"Non-repayable contribution covers up to 50% of AI project costs",
    taxImpact:"Grant is taxable income. Project costs are deductible.",
    timeToFunds:"6–12 months from application",effort:"High — detailed project proposal and matching funds required"},
+
+  // ── PAYROLL INTELLIGENCE CARDS ─────────────────────────────────────────────
+  {id:"ei-reduced",name:"EI Reduced Premium Rate — Employer",type:"Premium Reduction",level:"Federal",
+   amount:6400,realistic:3200,rate:"Reduced employer EI rate below standard 1.4× employee premium",
+   deadline:"Apply before January 1 of the benefit year — non-retroactive",status:"open",
+   desc:"Canadian employers who provide a qualified wage loss replacement plan (short-term disability plan) to employees may apply to Service Canada for a reduced EI employer premium rate. The reduction is proportional to the STD plan benefit level. For employers paying the standard 1.4× rate on all employees earning up to $63,200, the saving is $400–$800 per eligible employee annually. For an 8-employee CCPC, this is $3,200–$6,400 per year — permanently recurring with no reapplication required once approved. Many CCPC owners either do not know this program exists or assume their group benefits plan automatically qualifies. It must be applied for separately from Service Canada and approved before January 1 of the year in which the reduced rate applies.",
+   eligibility:["Registered Canadian employer","Qualified short-term disability plan covering majority of employees","Plan must provide a minimum benefit level — typically 66.67% of insurable earnings","Apply to Service Canada before January 1 of the benefit year"],
+   industries:["all"],minRevenue:0,maxRevenue:999999999,minEmployees:1,
+   stacksWith:["workbc","bcETG","csjobs","csbfp"],conflictsWith:[],
+   fit:{construction:5,professional:5,tech:5,manufacturing:5,retail:5,healthcare:5},
+   cashImpact:"$400–$800 per eligible employee annually — permanent recurring saving — $3,200–$6,400 for an 8-person team",
+   taxImpact:"Reduced payroll expense — employer EI savings are a reduction in payroll cost, not taxable income",
+   crossBorder:false,
+   payroll:true,
+   timeToFunds:"Immediately — lower EI remittances from January 1 of approved year",effort:"Low — one application to Service Canada — approved for subsequent years automatically"},
+
+  {id:"cpp2-compliance",name:"CPP2 Employer Compliance — Rate Correction",type:"Compliance Alert",level:"Federal",
+   amount:416,realistic:416,rate:"4.00% on earnings $74,600–$85,000 — NOT 5.95%",
+   deadline:"Each pay run — compounding error if incorrect",status:"open",
+   desc:"CPP2 was introduced in 2024 and fully phased in by 2026. The CPP2 employer contribution rate is 4.00% on employee earnings between $74,600 (Year's Maximum Pensionable Earnings) and $85,000 (Year's Additional Maximum Pensionable Earnings) — a band of $10,400. The maximum employer CPP2 contribution per employee per year is $416. The most common error: payroll software applying the CPP1 rate of 5.95% to the CPP2 band, resulting in over-deduction from the employee and over-remittance to CRA of $208 per affected employee. CRA will not flag this proactively — it results in a T4 discrepancy discovered at year-end requiring T4 amendments and employee refunds. T4 Box 16A (CPP2) must be disaggregated from Box 16 (CPP1) on all T4 slips filed for 2026. If your payroll software is not generating Box 16A separately, this is an urgent correction before February 28 T4 filing deadline.",
+   eligibility:["Any employer with employees earning above $74,600 annually","Applies to all provinces except Quebec (QPP rules differ)","Confirm in payroll software: CPP2 rate = 4.00%, not 5.95%"],
+   industries:["all"],minRevenue:0,maxRevenue:999999999,minEmployees:1,
+   stacksWith:[],conflictsWith:[],
+   fit:{construction:5,professional:5,tech:5,manufacturing:5,retail:5,healthcare:5},
+   cashImpact:"Prevents T4 amendments, employee refunds, and CRA reconciliation penalties — $208 over-deduction per affected employee per year",
+   taxImpact:"Correct CPP2 deductions flow to T4 Box 16A — required for employee tax filing and CRA reconciliation",
+   payroll:true,
+   timeToFunds:"Immediate — correct from next pay run",effort:"Very low — confirm one setting in payroll software"},
 ];
 
 // State extensions for GrantsReady
@@ -3814,6 +4288,13 @@ const DG_SOURCES={
   cra:{name:"CRA My Business Account",connected:false,provider:null,quality:0,lastSync:null,gaps:["No CRA account linked","GST filing dates not auto-pulled","Corporate tax installments not tracked","T2 data from prior year missing"]},
   pos:{name:"Point of Sale system",connected:false,provider:null,quality:0,lastSync:null,gaps:["Revenue data is bank-deposit estimates only","No daily sales breakdown","No product/service revenue split","Tip and cash sales not captured"]},
   inventory:{name:"Inventory management",connected:false,provider:null,quality:0,lastSync:null,gaps:["No inventory data","COGS is estimated at 40%","Inventory valuation unknown","Shrinkage not captured"]},
+  erp:{name:"ERP system (Business Central / SAP B1)",connected:false,provider:null,quality:0,lastSync:null,
+    gaps:["No ERP connection — P&L and balance sheet are manual estimates","Fixed asset register unavailable — QSBC 90% active asset test cannot be verified","Multi-entity data requires manual consolidation","Payroll and inventory data from ERP not accessible"],
+    supported:["Microsoft Dynamics 365 Business Central","SAP Business One","NetSuite","Sage Intacct","Oracle Fusion"],
+    apiMethod:{"Business Central":"REST API v2.0 — OAuth 2.0 Connect app","SAP Business One":"Service Layer REST API — JSON endpoints","NetSuite":"SuiteAnalytics REST API","Sage Intacct":"XML API","Oracle Fusion":"REST API — OIC connector"},
+    elevareReads:["P&L by account — active vs. passive income classification","Balance sheet — fixed assets for QSBC 90% active asset test","AR aging — cash flow forecast calibration","Multi-entity intercompany — MultiCo SBD allocation","Payroll module — CPP/EI and T4 reconciliation","Fixed asset register — CCA class mapping"],
+    integrationPath:["Phase 1 (now): Export trial balance as CSV → upload to DataGaps → Elevare maps to CCPC tax categories","Phase 2 (Q1 2027): Middleware API (Apideck unified accounting layer) — monthly live sync","Phase 3 (2027+): Dedicated REST connectors for Business Central v2.0 and SAP B1 Service Layer"],
+  },
 };
 
 // Gap impact scoring
@@ -3908,7 +4389,7 @@ const _baseRenderDataGaps=function(){
   // ── DASHBOARD ──
   if(tab==="dgdash") return`<div class="slide">
     <div style="margin-bottom:18px">
-      <h1 style="font-size:21px;font-weight:700;color:${C2.ink};letter-spacing:-.02em">DataGaps — Data Quality Report</h1>
+      <h1 style="font-size:21px;font-weight:700;color:${C2.ink};letter-spacing:-.02em">Data Intelligence — Data Quality Report</h1>
       <p style="font-size:13px;color:${C2.slate};margin-top:3px">Pinnacle Construction Ltd. · How complete your data picture is · Better data = better recommendations</p>
     </div>
 
@@ -4300,14 +4781,125 @@ const _baseRenderDataGaps=function(){
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DATAGAPS ROI CALCULATOR — Savings & Revenue Improvement Engine
-// Appended to renderDataGaps() — handles tab "dgroi"
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Extend renderDataGaps to handle dgroi tab
-// We patch the existing function to intercept the new tab
-// ── PATCH: renderDataGaps — add ROI tab ──────────────────────────────────────
+// ── ERP CONNECTOR TAB ────────────────────────────────────────────────────────
+function renderERPConnector(){
+  const rev=+(S.form.revenue)||1200000;
+  const emp=+(S.form.employees)||8;
+  const isLarger=rev>=5000000;
+  const erp=DG_SOURCES.erp;
+  const C2=C; // alias
+
+  const erpSystems=[
+    {name:"Microsoft Dynamics 365 Business Central",icon:"⬛",market:"35% of Canadian SMBs $5M–$100M",
+     api:"REST API v2.0 — OAuth 2.0 Connect app",
+     fields:["G/L entries → active vs. passive income","Customer ledger → AR aging for cash flow","Fixed assets → QSBC 90% active asset test","Payroll → CPP/EI verification","Multi-company → intercompany consolidation"],
+     effort:"Medium — 6–8 weeks (Phase 3)",
+     phase:"Phase 3 — 2027",
+     available:false,
+     csvPath:"Reports → Account Schedules → Export to Excel → upload to DataGaps",
+    },
+    {name:"SAP Business One",icon:"🔷",market:"25% of Canadian manufacturers and distributors",
+     api:"Service Layer REST API — JSON endpoints (HANA) or DI API (SQL Server)",
+     fields:["Journal entries → P&L categorisation","Business partner → AR/AP aging","Fixed asset module → QSBC asset ratio","HR module → payroll cost verification","Intercompany → multi-entity SBD allocation"],
+     effort:"Medium — 8–10 weeks (Phase 3)",
+     phase:"Phase 3 — 2027",
+     available:false,
+     csvPath:"Reports → Financial Reports → Trial Balance → Export → upload to DataGaps",
+    },
+    {name:"NetSuite (Oracle)",icon:"🟠",market:"Growing among Canadian tech and services companies",
+     api:"SuiteAnalytics REST API — OAuth 2.0",
+     fields:["Saved searches → P&L and balance sheet export","Subsidiaries → multi-entity consolidation","Fixed assets → asset register with book value","Payroll → compensation summary"],
+     effort:"Medium — 6–8 weeks (Phase 3)",
+     phase:"Phase 3 — 2027",
+     available:false,
+     csvPath:"Reports → Financial → Trial Balance → Export to CSV → upload to DataGaps",
+    },
+    {name:"Sage Intacct",icon:"🟢",market:"Popular in Canadian professional services and non-profits",
+     api:"XML API — Sage Intacct SDK",
+     fields:["General ledger → P&L by dimension","Accounts receivable → AR aging","Fixed assets → asset book value","Multi-entity → consolidated reporting"],
+     effort:"Medium — 6–8 weeks (Phase 3)",
+     phase:"Phase 3 — 2027",
+     available:false,
+     csvPath:"Reports → General Ledger → Account Detail → Export → upload to DataGaps",
+    },
+  ];
+
+  return`<div class="slide">
+    <div style="margin-bottom:16px">
+      <h1 style="font-size:21px;font-weight:700;color:${C2.ink}">ERP Intelligence Connector</h1>
+      <p style="font-size:13px;color:${C2.slate};margin-top:3px">Connect your ERP to bring all Elevare intelligence to your full financial dataset — including fixed assets, multi-entity consolidation, and verified payroll.</p>
+    </div>
+
+    <!-- Why ERP matters banner -->
+    <div style="background:${C2.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:white;margin-bottom:8px">Why ERP data transforms Elevare's intelligence</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+        ${[
+          {i:"📊",t:"QSBC asset test verified",d:"Fixed asset register from ERP enables the 90% active asset test — protects your $1,275,000 LCGE"},
+          {i:"🏢",t:"True multi-entity picture",d:"Intercompany data from ERP enables precise T2SCH23A SBD allocation across all associated corporations"},
+          {i:"💰",t:"Verified P&L — not estimates",d:"ERP general ledger gives exact active vs. passive income split — eliminates the 25% accuracy loss from manual estimates"},
+          {i:"👥",t:"Payroll from source",d:"ERP payroll module verifies T4 salary, CPP/EI, and taxable benefits — eliminates the risk of wrong T4 figures"},
+        ].map(p=>`<div style="background:rgba(255,255,255,.07);border-radius:8px;padding:10px 12px">
+          <div style="font-size:1.1rem;margin-bottom:4px">${p.i}</div>
+          <div style="font-size:12px;font-weight:600;color:white;margin-bottom:2px">${p.t}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5">${p.d}</div>
+        </div>`).join("")}
+      </div>
+    </div>
+
+    <!-- Available now: CSV import -->
+    <div style="background:${C2.greenLt};border:1px solid #A7F3D0;border-radius:12px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:${C2.green};margin-bottom:8px">Available now — CSV upload from any ERP</div>
+      <div style="font-size:12px;color:${C2.ink};margin-bottom:10px;line-height:1.6">Before the live API connector is built, you can export your trial balance and P&L from your ERP as a CSV or Excel file and upload it to DataGaps. Elevare maps the account codes to CCPC tax categories automatically. This gives you 80% of the intelligence benefit with no API integration required.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        ${erpSystems.map(e=>`<div style="background:white;border:1px solid ${C2.border};border-radius:8px;padding:9px 12px">
+          <div style="font-size:12px;font-weight:600;color:${C2.ink};margin-bottom:3px">${e.icon} ${e.name.split(' ').slice(0,3).join(' ')}</div>
+          <div style="font-size:10.5px;color:${C2.slate};line-height:1.5">${e.csvPath}</div>
+        </div>`).join("")}
+      </div>
+      <button onclick="alert('CSV Upload — in production this opens a file picker. Upload your ERP trial balance CSV and Elevare maps account codes to CCPC tax categories. Templates available for Business Central, SAP B1, NetSuite, and Sage Intacct.')" style="background:${C2.teal};color:white;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer">Upload ERP data file →</button>
+    </div>
+
+    <!-- ERP systems — Phase 3 live connectors -->
+    <div style="font-size:13px;font-weight:600;color:${C2.ink};margin-bottom:10px">Live API connectors — Phase 3 (2027)</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+      ${erpSystems.map(e=>`<div style="background:white;border:1px solid ${C2.border};border-radius:12px;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid ${C2.border};display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.2rem">${e.icon}</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:${C2.ink}">${e.name}</div>
+              <div style="font-size:11px;color:${C2.slate}">${e.market}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="background:${C2.mist};color:${C2.slate};font-size:11px;font-weight:500;padding:3px 10px;border-radius:99px">${e.phase}</span>
+            <button onclick="alert('${e.name} connector — coming Phase 3 2027. Join the waitlist at elevarefinanceos.ca to be notified when available.')" style="background:transparent;border:1px solid ${C2.border};border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;color:${C2.slate};cursor:pointer">Join waitlist</button>
+          </div>
+        </div>
+        <div style="padding:12px 16px">
+          <div style="font-size:11px;font-weight:500;color:${C2.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">API: ${e.api}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            ${e.fields.map(f=>`<span style="font-size:11px;background:${C2.mist};border:1px solid ${C2.border};border-radius:99px;padding:2px 9px;color:${C2.slate}">${f}</span>`).join("")}
+          </div>
+        </div>
+      </div>`).join("")}
+    </div>
+
+    <!-- Intelligence layer is ERP-agnostic -->
+    <div style="background:${C2.sky};border:1px solid ${C2.tealLt};border-radius:10px;padding:12px 16px">
+      <div style="font-size:13px;font-weight:600;color:${C2.teal};margin-bottom:4px">The intelligence layer is ERP-agnostic</div>
+      <div style="font-size:12px;color:${C2.ink};line-height:1.6">Elevare's CCPC tax calculation engine, grant matching rules engine, and AI recommendation layer do not know or care whether data came from QuickBooks, SAP Business One, or Business Central. They receive normalised financial data and apply the same Canadian CCPC intelligence. Connecting an ERP does not change what Elevare does — it improves the accuracy of the data those engines work with. The same R&D that serves a $1.2M QBO client serves a $15M SAP B1 client — with only an additional data connector layer.</div>
+    </div>
+  </div>`;
+}
+
+// Patch renderDataGaps to intercept ERP tab
 function renderDataGaps(){
   if(S.dgTab==="dgroi") return renderDGROI();
+  if(S.dgTab==="dgerp") return renderERPConnector();
   return _baseRenderDataGaps();
 }
 
@@ -4892,7 +5484,7 @@ const _ppBase=function(){
     return `<div class="slide">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
         <div>
-          <h1 style="font-size:21px;font-weight:700;color:${C2.ink};letter-spacing:-.02em">ProfitPilot — Revenue & Margin Intelligence</h1>
+          <h1 style="font-size:21px;font-weight:700;color:${C2.ink};letter-spacing:-.02em">Profit Intel — Revenue & Margin Intelligence</h1>
           <p style="font-size:13px;color:${C2.slate};margin-top:3px">Pinnacle Construction · Identifies margin leaks and revenue growth opportunities from your existing data</p>
         </div>
         <button onclick="setState({ppTab:'ppplan'})" style="background:${C2.teal};color:white;border:none;border-radius:9px;padding:10px 18px;font-size:13px;font-weight:600">View growth plan →</button>
@@ -6370,6 +6962,9 @@ const IOS_REG_CALENDAR = [
   {date:"2026-05-29",event:"CanExport application deadline",module:"GrantsReady",urgency:"URGENT",
    type:"Grant deadline",description:"CanExport SME intake closes May 29. Covers 50% of export costs up to $50K. Next window: 2027.",
    action:"Apply at tradecommissioner.gc.ca/canexport",daysAway:16,craFiling:false},
+  {date:"2026-06-15",event:"Payroll remittance — May deductions due",module:"TaxReady",urgency:"UPCOMING",
+   type:"CRA payment",description:"Monthly payroll remittance: CPP1 + CPP2 + EI + income tax deducted in May must reach CRA by June 15. Penalty: 3% if one day late, escalating to 10% after 7 days. Check your remitter category — if your Average Monthly Withholding Amount exceeds $25,000, you may be an accelerated remitter with twice-monthly deadlines.",
+   action:"Confirm payroll software has remitted May deductions. Check CRA My Business Account → Payroll (RP account) for balance owing.",daysAway:33,craFiling:true,payroll:true},
   {date:"2026-06-15",event:"T1 personal return deadline (self-employed)",module:"TaxReady",urgency:"URGENT",
    type:"CRA filing",description:"T1 personal income tax return for self-employed individuals and their spouses. Interest on balance owing calculated from April 30.",
    action:"File through your accountant or CRA My Account",daysAway:33,craFiling:true},
@@ -6403,6 +6998,12 @@ const IOS_REG_CALENDAR = [
   {date:"2027-01-15",event:"Canada Summer Jobs application window opens",module:"GrantsReady",urgency:"PLANNED",
    type:"Grant application",description:"CSJ application window for April–August 2027 positions opens January. Deadline typically February. Multiple positions per employer allowed.",
    action:"Apply at servicecanada.gc.ca — plan summer project work now",daysAway:247,craFiling:false},
+  {date:"2027-01-01",event:"EI reduced premium — apply before January 1",module:"TaxReady",urgency:"PLANNED",
+   type:"Payroll compliance",description:"If you offer a qualified wage loss replacement plan (short-term disability plan), you may qualify for a reduced EI employer premium rate — below the standard 1.4× employee rate. Applications must be submitted to Service Canada before the start of the calendar year. Potential saving: $400–$800 per eligible employee. An 8-person team could save $3,200–$6,400 annually.",
+   action:"Contact Service Canada before December 31 — apply online at canada.ca/en/revenue-agency/services/e-services/e-services-businesses/payroll-deductions-online-calculator.html",daysAway:231,craFiling:false,payroll:true},
+  {date:"2027-02-28",event:"T4 slips — CRA filing deadline",module:"TaxReady",urgency:"PLANNED",
+   type:"CRA filing",description:"T4 slips for all employees must be filed with CRA and distributed to employees by February 28, 2027. Critical 2026 requirement: T4 Box 16A (CPP2) must be disaggregated from Box 16 (CPP1). If payroll software is not producing CPP2-compliant T4s, this is an urgent correction before year-end. Penalty: $10/slip/day for late filing (max $1,000 for first 100 slips).",
+   action:"Confirm payroll software generating CPP2-compliant T4s (Box 16 + Box 16A). File T4 Summary with CRA by Feb 28. Distribute slips to employees.",daysAway:292,craFiling:true,payroll:true},
   {date:"2027-03-01",event:"RRSP contribution deadline",module:"TaxReady",urgency:"PLANNED",
    type:"Tax action",description:"RRSP contributions for the 2026 tax year must be made by March 1, 2027. Check TaxReady Optimizer for exact contribution room — use CRA verified figure, not estimate.",
    action:"Confirm RRSP room in TaxReady → Optimizer, transfer contribution to RRSP account",daysAway:292,craFiling:false},
@@ -6538,7 +7139,155 @@ function renderIntelligenceOS(){
             <div style="font-size:10px;color:rgba(255,255,255,.4)">${m.s}</div>
           </div>`).join("")}
         </div>
-      </div>
+      </div>      ${(()=>{
+        const isDental=S.activeProfile==="dental";
+        const agentActions=isDental?[
+          {id:"aa1",priority:"HIGH",mode:"Mode 2 — Ready to execute",
+           icon:"📦",color:"#0E8A7D",
+           title:"SR&ED claim package — ready to submit",
+           detected:"SR&ED consulting work identified across 340 hours of AI scheduling development in 2025. Eligible labour cost: $256,000. Refundable credit: $89,600 (35% CCPC rate).",
+           prepared:"T661 form pre-filled from payroll data and project time logs. SR&ED consultant reviewed. CRA pre-claim approval reference included.",
+           outcome:"$89,600 refundable tax credit — receive within 6–8 months of filing.",
+           deadline:"June 30, 2027 — 18-month deadline from Dec 31 fiscal year-end",
+           action:"Approve to send package to SR&ED consultant for final sign-off and CRA submission",
+           approved:false},
+          {id:"aa2",priority:"HIGH",mode:"Mode 2 — Ready to execute",
+           icon:"📋",color:"#0E8A7D",
+           title:"Year-end CPA package — assembled for Davidson & Chen",
+           detected:"FY2026 fiscal year end approaching. 40 fields assembled across T2 Schedule 125, 7, 100, 3, T4 Summary, GST/HST reconciliation.",
+           prepared:"Secure download link ready. Passive income clawback ($85,000 SBD reduction) flagged for CPA attention. CPP2 T4 Box 16A verified.",
+           outcome:"Saves accountant ~5 hours T2 prep time (~$1,500). Filing ready by Feb 28 deadline.",
+           deadline:"February 28, 2027",
+           action:"Approve to send secure link to schen@davidsonchen.ca",
+           approved:false},
+          {id:"aa3",priority:"MEDIUM",mode:"Mode 1 — Monitoring",
+           icon:"🔍",color:"#F59E0B",
+           title:"RDTOH refund — optimal timing window approaching",
+           detected:"RDTOH balance $31,200. Trigger threshold: declare $81,300 in eligible dividends before September 1 to receive $31,200 refund before year-end.",
+           prepared:"Analysis complete. Timing optimal for Q3 dividend declaration. T2054 form pre-filled.",
+           outcome:"$31,200 RDTOH refund received — improves corporate cash position by year-end.",
+           deadline:"Declare dividends before September 1, 2026 for optimal refund timing",
+           action:"Book 20-min advisor call to confirm dividend strategy before declaring",
+           approved:false},
+        ]:[
+          {id:"aa1",priority:"HIGH",mode:"Mode 2 — Ready to execute",
+           icon:"📦",color:"#0E8A7D",
+           title:"WorkBC application — new Operations hire starting Monday",
+           detected:"New employee detected in payroll system. Position: Operations Coordinator. Start date: Monday June 22. WorkBC covers 85% of wages for 24 weeks.",
+           prepared:"WorkBC application pre-filled with employer BCEID, position details, wage rate ($22/hr), and expected on-the-job training activities. Application ready to submit.",
+           outcome:"$16,320 wage subsidy recovered over 24 weeks. Must be submitted before start date.",
+           deadline:"Submit before Monday June 22 — non-retroactive",
+           action:"Approve to submit WorkBC application to Service Canada portal",
+           approved:false},
+          {id:"aa2",priority:"HIGH",mode:"Mode 2 — Ready to execute",
+           icon:"📋",color:"#0E8A7D",
+           title:"Year-end CPA package — assembled for Davidson & Chen",
+           detected:"November 1 auto-assembly triggered. 40 fields assembled across T2 Schedule 125, 7, 100, 3, T4 Summary, GST/HST reconciliation, T2SCH23A allocation.",
+           prepared:"Secure download link ready. Passive income ($38,000 — within safe range) noted. CPP2 rate verified at 4.00%. CanExport grant outcome included.",
+           outcome:"Saves accountant ~5 hours T2 prep time (~$1,500). Filing ready by Feb 28 deadline.",
+           deadline:"February 28, 2027 — T4 and T2 filing deadline",
+           action:"Approve to send secure link to schen@davidsonchen.ca",
+           approved:false},
+          {id:"aa3",priority:"MEDIUM",mode:"Mode 2 — Ready to execute",
+           icon:"💰",color:"#F59E0B",
+           title:"Q3 salary review — income tracking 18% above forecast",
+           detected:"Year-to-date corporate income is $298,000 at September 30 — tracking to $397,000 full year vs. $387,000 plan. Optimal salary at this income level is $112,000, not current $95,000.",
+           prepared:"Payroll change instruction drafted for Payworks: increase final 3 payrolls by $1,417/pay period to reach $112,000 annual salary. Combined tax saving: $4,200.",
+           outcome:"$4,200 in combined corporate + personal tax saved. Additional RRSP room: $20,160.",
+           deadline:"Must be processed in payroll before December 31",
+           action:"Approve to send payroll change instruction to Payworks, or edit the amount",
+           approved:false},
+          {id:"aa4",priority:"LOW",mode:"Mode 1 — Monitoring",
+           icon:"🔍",color:"#64748B",
+           title:"CanExport claim — project costs now eligible for reimbursement",
+           detected:"Washington State project completed. $24,700 in documented US market development costs qualify for CanExport 50% reimbursement — up to $12,350 recoverable.",
+           prepared:"Expense documentation compiled from QBO project codes. Claim form pre-filled. Supporting invoices attached from InvoiceVault.",
+           outcome:"$12,350 non-repayable grant reimbursement. Submit within 60 days of project completion.",
+           deadline:"August 22, 2026 — 60 days from project completion date",
+           action:"Review expense documentation and approve to submit CanExport claim",
+           approved:false},
+        ];
+
+        const highPriority=agentActions.filter(a=>a.priority==="HIGH");
+        const otherActions=agentActions.filter(a=>a.priority!=="HIGH");
+
+        return`<div style="background:linear-gradient(135deg,${C2.navyMid},rgba(13,33,55,.98));border-radius:14px;overflow:hidden;margin-bottom:14px;border:1px solid rgba(14,138,125,.3)">
+          <!-- Agent header -->
+          <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,${C2.teal},#12B3A3);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:white">Elevare Advisor</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.45)">AI agent · ${agentActions.length} action items ready · Last analysed: 4 min ago</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <span style="background:rgba(14,138,125,.2);color:#12B3A3;font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid rgba(14,138,125,.3)">${highPriority.length} high priority</span>
+              <button onclick="setState({screen:'settings',settingsTab:'agent'})" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer">Agent settings</button>
+            </div>
+          </div>
+
+          <!-- Agent message -->
+          <div style="padding:12px 16px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:24px;height:24px;border-radius:50%;background:${C2.teal};display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px">EA</div>
+              <div style="background:rgba(255,255,255,.06);border-radius:0 10px 10px 10px;padding:10px 14px;flex:1">
+                <div style="font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.7">
+                  I have reviewed your connected financial data and identified <strong style="color:white">${agentActions.length} action items</strong> this week.
+                  ${highPriority.length>0?`<strong style="color:#A7F3D0"> ${highPriority.length} are high priority</strong> — I have prepared complete drafts for the items I can execute on your behalf.`:""} 
+                  The items that require your advisor's judgment are flagged separately. All actions require your explicit approval before I submit anything.
+                </div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,.3);margin-top:5px">Elevare Advisor · Mode 2 (prepare and present) · ${new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action cards -->
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+            ${agentActions.map((action,idx)=>`<div style="background:rgba(255,255,255,.05);border:1px solid ${action.priority==="HIGH"?"rgba(14,138,125,.3)":"rgba(255,255,255,.08)"};border-left:3px solid ${action.color};border-radius:10px;padding:12px 14px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                <div style="display:flex;align-items:flex-start;gap:9px;flex:1">
+                  <span style="font-size:16px;flex-shrink:0">${action.icon}</span>
+                  <div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px">
+                      <span style="background:${action.color}22;color:${action.color};font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px">${action.priority}</span>
+                      <span style="font-size:10px;color:rgba(255,255,255,.35);background:rgba(255,255,255,.06);padding:1px 7px;border-radius:99px">${action.mode}</span>
+                    </div>
+                    <div style="font-size:13px;font-weight:600;color:white">${action.title}</div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-left:25px">
+                <div style="font-size:11.5px;color:rgba(255,255,255,.5);margin-bottom:4px;line-height:1.5"><strong style="color:rgba(255,255,255,.7)">Detected:</strong> ${action.detected}</div>
+                <div style="font-size:11.5px;color:rgba(255,255,255,.5);margin-bottom:4px;line-height:1.5"><strong style="color:rgba(255,255,255,.7)">Prepared:</strong> ${action.prepared}</div>
+                <div style="font-size:11.5px;color:#A7F3D0;margin-bottom:6px;line-height:1.5"><strong style="color:#A7F3D0">Expected outcome:</strong> ${action.outcome}</div>
+                <div style="background:rgba(255,255,255,.05);border-radius:6px;padding:6px 10px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                  <span style="font-size:11px;color:${action.priority==="HIGH"?"#FCA5A5":"#FCD34D"}">⏱</span>
+                  <span style="font-size:11px;color:rgba(255,255,255,.5)">${action.deadline}</span>
+                </div>
+                <div style="display:flex;gap:7px;flex-wrap:wrap">
+                  <button onclick="alert('✅ Action approved!\\n\\nElevare Advisor is now executing:\\n${action.action}\\n\\nA confirmation will appear in the Decision Log within 60 seconds. You can undo within 5 minutes from the Action History.')" style="background:${action.color};color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">✓ Approve</button>
+                  <button onclick="alert('Edit mode — in production this opens the draft so you can modify amounts, recipients, or timing before approving.')" style="background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,.6);cursor:pointer">Edit draft</button>
+                  <button onclick="alert('Action dismissed. Elevare Advisor will not raise this item again unless conditions change.')" style="background:transparent;border:none;padding:7px 10px;font-size:12px;color:rgba(255,255,255,.3);cursor:pointer">Dismiss</button>
+                </div>
+              </div>
+            </div>`).join("")}
+          </div>          <div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;gap:12px">
+              ${[
+                {m:"Mode 1",d:"Monitor + Alert",c:"#64748B"},
+                {m:"Mode 2",d:"Prepare + Present",c:"#0E8A7D"},
+                {m:"Mode 3",d:"Auto-execute (Phase 3)",c:"#374151"},
+              ].map(m=>`<div style="display:flex;align-items:center;gap:5px">
+                <div style="width:8px;height:8px;border-radius:50%;background:${m.c}"></div>
+                <span style="font-size:10px;color:rgba(255,255,255,.4)">${m.m}: ${m.d}</span>
+              </div>`).join("")}
+
+            </div>
+            <div style="font-size:10px;color:rgba(255,255,255,.25)">All actions require explicit approval · Full audit trail logged · CRA-compliant</div>
+          </div>
+        </div>`;
+      })()}
 
       ${IOS_D.map(d=>{
         const mc={TaxReady:C2.purple,GrantsReady:C2.green,CashFlow:C2.teal,MultiCo:C2.navyMid}[d.module]||C2.slate;
@@ -6670,7 +7419,7 @@ function renderIntelligenceOS(){
       </div>
 
       <!-- Grant intelligence detail -->
-      <div style="background:${C2.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px">
+      <div style="background:${C2.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:14px">
         <div style="font-size:13px;font-weight:600;color:${C2.green};margin-bottom:8px">What makes applications succeed — from ${bm.clientsInNetwork} client outcomes</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           ${IOS_GRANT_INTEL.slice(0,2).map(g=>`<div style="background:white;border-radius:8px;padding:10px 12px">
@@ -6681,6 +7430,120 @@ function renderIntelligenceOS(){
           </div>`).join("")}
         </div>
       </div>
+
+      <!-- WHAT WOULD HAVE BEEN MISSED ─────────────────────────────────────── -->
+      ${(()=>{
+        const decisions=IOS_D;
+        const pass=+(S.form.passive||0);
+        const sal=+(S.form.salary||0);
+        const emp=+(S.form.employees||0);
+        const rev=+(S.form.revenue||0);
+
+        // Calculate specific prevented losses for this profile
+        const risks=[
+          {
+            icon:"🔴",
+            category:"Tax",
+            title:"Passive income clawback — undetected",
+            without:"CRA assesses reduced SBD at year-end filing — no warning during the year",
+            withElevare:"Alert fired when passive income approached $50K threshold — salary adjusted in Q3",
+            prevented:pass>50000?Math.round((pass-50000)*5*0.11):9350,
+            timing:"Would have been discovered March 2027 — too late to act",
+            module:"TaxReady"
+          },
+          {
+            icon:"🔴",
+            category:"Payroll",
+            title:"CPP2 rate error across all employees",
+            without:"Payroll software applies 5.95% to CPP2 band — $208 over-deduction per employee — T4 amendments required in February",
+            withElevare:"CPP2 compliance alert in TaxReady optimizer — rate confirmed at 4.00% before first pay run",
+            prevented:Math.round(emp*208),
+            timing:"Discovered at T4 reconciliation — 52 incorrect pay runs to amend",
+            module:"TaxReady"
+          },
+          {
+            icon:"🟡",
+            category:"Grants",
+            title:"CanExport SMEs deadline missed",
+            without:"No awareness of May 29 deadline — application window closed — next intake 2027",
+            withElevare:"Deadline alert fired April 15 — 44 days' notice — application submitted",
+            prevented:25000,
+            timing:"Non-recoverable — program closes annually",
+            module:"GrantsReady"
+          },
+          {
+            icon:"🟡",
+            category:"Payroll",
+            title:"EI reduced premium — unclaimed annually",
+            without:"Employer paying standard 1.4× EI rate despite qualifying for reduced rate",
+            withElevare:"EI reduced premium alert — Service Canada application submitted before January 1",
+            prevented:Math.round(Math.min(emp,4)*600),
+            timing:"Non-retroactive — must apply before January 1 each year",
+            module:"TaxReady"
+          },
+          {
+            icon:"🟡",
+            category:"Cash Flow",
+            title:"November payroll cash crisis — unforecast",
+            without:"Balance drops to $3,210 on November 14 — payroll of $18,400 due November 15 — short $15,190",
+            withElevare:"CashFlow Pilot alert fired October 31 — 14 days' notice — line of credit arranged",
+            prevented:0,
+            timing:"Would have required emergency financing at 18–24% interest rate",
+            module:"CashFlow Pilot",
+            note:"Prevented emergency cost — not a direct dollar saving"
+          },
+        ];
+
+        const totalPrevented=risks.filter(r=>r.prevented>0).reduce((a,r)=>a+r.prevented,0);
+
+        return`<div style="background:${C2.navyMid};border-radius:12px;overflow:hidden;margin-bottom:14px">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-size:13px;font-weight:600;color:white;margin-bottom:3px">Without Elevare — what would have been missed</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.5)">This is the case for continuous monitoring vs. annual advisory. Total prevented exposure: <strong style="color:#FCA5A5">$${totalPrevented.toLocaleString()}</strong></div>
+          </div>
+          <div style="padding:12px 18px">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+              ${risks.map(r=>`<div style="background:rgba(255,255,255,.06);border-radius:9px;padding:11px 14px;border-left:3px solid ${r.icon==="🔴"?"#FCA5A5":"#FCD34D"}">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:5px">
+                  <div style="flex:1">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                      <span style="font-size:13px">${r.icon}</span>
+                      <span style="font-size:12px;font-weight:600;color:white">${r.title}</span>
+                      <span style="font-size:10px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.5);padding:1px 7px;border-radius:99px">${r.module}</span>
+                    </div>
+                    <div style="font-size:11px;color:#FCA5A5;margin-bottom:2px">Without: ${r.without}</div>
+                    <div style="font-size:11px;color:#A7F3D0">With Elevare: ${r.withElevare}</div>
+                    ${r.note?`<div style="font-size:10.5px;color:rgba(255,255,255,.35);margin-top:2px">${r.note}</div>`:""}
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    ${r.prevented>0?`<div style="font-size:16px;font-weight:700;color:#A7F3D0;font-family:'DM Mono',monospace">$${r.prevented.toLocaleString()}</div><div style="font-size:10px;color:rgba(255,255,255,.4)">prevented</div>`:`<div style="font-size:11px;color:rgba(255,255,255,.4);max-width:100px;text-align:right;line-height:1.4">Emergency cost avoided</div>`}
+                  </div>
+                </div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,.35);margin-top:3px">⏱ ${r.timing}</div>
+              </div>`).join("")}
+            </div>
+
+            <!-- The subscription value statement -->
+            <div style="background:rgba(14,138,125,.15);border:1px solid rgba(14,138,125,.3);border-radius:8px;padding:11px 14px">
+              <div style="font-size:12.5px;font-weight:600;color:#12B3A3;margin-bottom:5px">The subscription value — continuous monitoring vs. annual review</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px">Annual accountant review</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.6">Reviews what happened last year. Finds problems after December 31 when it is too late to act. Costs $3,500–$5,000 for the T2. Meets once a year.</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:#12B3A3;margin-bottom:4px">Elevare continuous monitoring ($199/mo)</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.6">Monitors every month. Alerts in September when there is still time to act. Packages the year-end data for your accountant. Prevented $${totalPrevented.toLocaleString()} in avoidable costs this year.</div>
+                </div>
+              </div>
+              <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:rgba(255,255,255,.6)">Annual subscription cost: <strong style="color:white">$2,388/year</strong></span>
+                <span style="font-size:12px;color:#A7F3D0">Prevented exposure: <strong>$${totalPrevented.toLocaleString()}</strong> · Return: <strong>${Math.round(totalPrevented/2388)}x</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      })()}
     </div>`;
   }
 
@@ -6938,6 +7801,64 @@ function renderIntelligenceOS(){
           <span style="font-size:11px;color:${C2.slate}">Synced ${conn.lastSync||"—"}</span>
         </div>`).join("")}
       </div>
+
+      <!-- QSBC Health Monitor -->
+      ${(()=>{
+        const rev=+(S.form.revenue)||1200000;
+        const pass=+(S.form.passive)||38000;
+        const isDental=S.activeProfile==="dental";
+        // Simplified QSBC score using profile data
+        // Active asset ratio: estimate from revenue/income ratio and passive income
+        // A corporation with high passive relative to total income may be near threshold
+        const passiveRatio=pass/(pass+(+(S.form.income)||387000));
+        const estimatedActiveAssetPct=Math.round((1-passiveRatio*2)*100);
+        const activeAssetPct=Math.min(98,Math.max(55,estimatedActiveAssetPct));
+        const test90=activeAssetPct>=90;
+        const test50=activeAssetPct>=50;
+        const hasUSRevenue=(S.form.usRevenuePct||0)>0;
+        const usRevPct=S.form.usRevenuePct||0;
+        const usRisk=usRevPct>50;
+        // LCGE 2026: $1,275,000 (indexed from $1.25M base in June 2024)
+        const lcge=1275000;
+        const taxAtRisk=Math.round(lcge*0.5*0.535); // ~$340K tax at risk if QSBC fails
+        const statusColor=test90&&test50&&!usRisk?C.green:(!test90||usRisk)?C.red:C.amber;
+        const statusLabel=test90&&test50&&!usRisk?"Eligible":"At risk";
+        return`<div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:12px">
+          <div style="padding:11px 16px;border-bottom:1px solid ${C.border};display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:13px;font-weight:600;color:${C.ink}">QSBC Health Monitor — Lifetime Capital Gains Exemption</span>
+            <span style="background:${statusColor}22;color:${statusColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">${statusLabel}</span>
+          </div>
+          <div style="padding:12px 16px">
+            <div style="font-size:12px;color:${C.slate};margin-bottom:12px;line-height:1.5">
+              The <strong style="color:${C.ink}">Lifetime Capital Gains Exemption</strong> shelters up to <strong style="color:${C.teal}">$${lcge.toLocaleString()}</strong> in capital gains when you sell QSBC shares (2026 indexed amount). 
+              If the corporation fails any QSBC test, the exemption is lost — estimated tax cost: <strong style="color:${C.red}">$${taxAtRisk.toLocaleString()}</strong>.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+              ${[
+                {label:"90% Active Asset Test",desc:"At disposal: ≥90% of assets in active Canadian business",value:activeAssetPct+"%",required:"≥90%",pass:test90},
+                {label:"50% Holding Period Test",desc:"During 24 months prior: ≥50% assets in active business",value:activeAssetPct+"%",required:"≥50%",pass:test50},
+                {label:"24-Month Holding Test",desc:"Shares held by individual or related person ≥24 months",value:"Confirmed",required:"24 months",pass:true},
+              ].map(t=>`<div style="background:${t.pass?C.greenLt:C.redLt};border:1px solid ${t.pass?"#A7F3D0":"#FCA5A5"};border-radius:8px;padding:10px 12px">
+                <div style="font-size:11px;font-weight:600;color:${t.pass?C.green:C.red};margin-bottom:3px">${t.pass?"✓":"✗"} ${t.label}</div>
+                <div style="font-size:15px;font-weight:700;color:${t.pass?C.green:C.red};font-family:'DM Mono',monospace">${t.value}</div>
+                <div style="font-size:10px;color:${C.slate};margin-top:3px">Required: ${t.required}</div>
+                <div style="font-size:10px;color:${C.slate};margin-top:2px;line-height:1.4">${t.desc}</div>
+              </div>`).join("")}
+            </div>
+            ${hasUSRevenue?`<div style="background:${usRisk?C.redLt:C.amberLt};border:1px solid ${usRisk?"#FCA5A5":"#FCD34D"};border-radius:8px;padding:10px 14px;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:600;color:${usRisk?C.red:C.amber};margin-bottom:3px">${usRisk?"⚠ QSBC Risk — US revenue exceeds 50%":"⚠ Monitor — US revenue ${usRevPct}% of total"}</div>
+              <div style="font-size:11.5px;color:${C.ink};line-height:1.6">QSBC requires business carried on <strong>primarily in Canada</strong>. US operations at ${usRevPct}% of revenue ${usRisk?"exceed the 50% threshold — QSBC status may be disqualified. Restructuring advice required before any planned exit.":"are approaching the 50% threshold. Monitor closely as US revenue grows."}</div>
+            </div>`:""}
+            ${!test90?`<div style="background:${C.amberLt};border:1px solid #FCD34D;border-radius:8px;padding:10px 14px">
+              <div style="font-size:12px;font-weight:600;color:${C.amber};margin-bottom:3px">Purification required</div>
+              <div style="font-size:11.5px;color:${C.ink};line-height:1.6">Active asset ratio is below 90%. Consider transferring passive investments to a related HoldCo, or deploying cash in active business assets before year-end. Review with advisor — 24 months of compliance are required before a sale.</div>
+            </div>`:`<div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px">
+              <div style="font-size:12px;font-weight:600;color:${C.green};margin-bottom:3px">QSBC status protected — continue monitoring quarterly</div>
+              <div style="font-size:11.5px;color:${C.ink}">Passive investments, excess cash, or non-active assets can erode QSBC eligibility without warning. Elevare monitors the 90% active asset ratio against your connected balance sheet data every month.</div>
+            </div>`}
+          </div>
+        </div>`;
+      })()}
 
       <!-- Version history -->
       <div style="background:white;border:1px solid ${C2.border};border-radius:12px;overflow:hidden">
@@ -7546,6 +8467,127 @@ function renderCPAConnect(){
     </div>`;
   }
 
+  if(tab==="cpaPartner"){
+    var partnerClients=[
+      {name:"Pinnacle Construction Ltd.",industry:"Construction",rev:"$1.2M",alerts:2,score:78,status:"amber",alert1:"Passive income approaching $50K threshold",commission:40},
+      {name:"Westside Dental PC",industry:"Dental PC",rev:"$980K",alerts:1,score:91,status:"green",alert1:"RDTOH refund — optimal Q3 dividend timing",commission:40},
+      {name:"Pacific Tech Solutions Inc.",industry:"Technology",rev:"$2.1M",alerts:3,score:62,status:"red",alert1:"SBD limit: $487K of $500K used",commission:40},
+      {name:"Maple Ridge Physiotherapy PC",industry:"Healthcare PC",rev:"$740K",alerts:0,score:88,status:"green",alert1:"",commission:40},
+      {name:"Summit Electrical Contractors Ltd.",industry:"Construction",rev:"$3.4M",alerts:2,score:71,status:"amber",alert1:"WorkBC application — 2 new hires eligible",commission:40},
+      {name:"Okanagan Winery Inc.",industry:"Manufacturing",rev:"$1.8M",alerts:1,score:84,status:"green",alert1:"CanExport — US distributor costs eligible",commission:40},
+      {name:"Vancouver Legal Corp.",industry:"Legal PC",rev:"$620K",alerts:1,score:73,status:"amber",alert1:"Specified corporate income rules review",commission:40},
+      {name:"North Shore Consulting Inc.",industry:"Professional Services",rev:"$890K",alerts:0,score:95,status:"green",alert1:"",commission:40},
+    ];
+    var totalAlerts=partnerClients.reduce(function(a,c){return a+c.alerts;},0);
+    var totalCommission=partnerClients.length*40;
+    var redCount=partnerClients.filter(function(c){return c.status==="red";}).length;
+    var amberCount=partnerClients.filter(function(c){return c.status==="amber";}).length;
+    var avgScore=Math.round(partnerClients.reduce(function(a,c){return a+c.score;},0)/partnerClients.length);
+
+    var partnerRows=partnerClients.map(function(client,i){
+      var sC=client.status==="red"?C.red:client.status==="amber"?C.amber:C.green;
+      var sBg=client.status==="red"?C.redLt:client.status==="amber"?C.amberLt:C.greenLt;
+      return "<div style='padding:11px 16px;border-bottom:"+(i<partnerClients.length-1?"1px solid "+C.border:"none")+";display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;background:"+(i%2===0?"white":C.mist)+"'>"+
+        "<div style='flex:1;min-width:160px'><div style='font-size:13px;font-weight:600;color:"+C.ink+";margin-bottom:2px'>"+client.name+"</div>"+
+        "<div style='font-size:11px;color:"+C.slate+"'>"+client.industry+" · "+client.rev+"</div></div>"+
+        "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'>"+
+        "<div style='text-align:center;min-width:44px'><div style='font-size:14px;font-weight:700;color:"+sC+";font-family:monospace'>"+client.score+"</div><div style='font-size:9.5px;color:"+C.slate+"'>score</div></div>"+
+        (client.alerts>0?
+          "<div style='background:"+sBg+";border:1px solid "+sC+"44;border-radius:7px;padding:4px 10px'><div style='font-size:11px;font-weight:600;color:"+sC+"'>"+client.alerts+" alert"+( client.alerts>1?"s":"" )+"</div><div style='font-size:10px;color:"+C.slate+"'>"+client.alert1.substring(0,30)+(client.alert1.length>30?"…":"")+"</div></div>":
+          "<div style='background:"+C.greenLt+";border:1px solid #A7F3D0;border-radius:7px;padding:4px 10px'><div style='font-size:11px;font-weight:600;color:"+C.green+"'>✓ All clear</div><div style='font-size:10px;color:"+C.slate+"'>No alerts</div></div>"
+        )+
+        "<div style='background:"+C.mist+";border:1px solid "+C.border+";border-radius:7px;padding:4px 10px;text-align:center'><div style='font-size:11px;font-weight:600;color:"+C.teal+"'>$"+client.commission+"/mo</div><div style='font-size:9.5px;color:"+C.slate+"'>commission</div></div>"+
+        "<button onclick='alert(\"Opening "+client.name+" dashboard in read-only partner view\")' style='background:transparent;border:1px solid "+C.border+";border-radius:7px;padding:5px 11px;font-size:11px;color:"+C.slate+";cursor:pointer'>View →</button>"+
+        "</div></div>";
+    }).join("");
+
+    var alertRows=partnerClients.filter(function(c){return c.alerts>0;}).map(function(c){
+      var isRed=c.status==="red";
+      return "<div style='padding:10px 16px;border-bottom:1px solid "+C.border+";display:flex;align-items:flex-start;gap:10px'>"+
+        "<span style='font-size:12px;color:"+(isRed?C.red:C.amber)+";flex-shrink:0'>"+(isRed?"🔴":"🟡")+"</span>"+
+        "<div style='flex:1'><div style='font-size:11.5px;font-weight:600;color:"+C.ink+"'>"+c.name+"</div>"+
+        "<div style='font-size:11.5px;color:"+C.slate+"'>"+c.alert1+"</div></div>"+
+        "<button onclick='alert(\"Viewing alert for "+c.name+"\")' style='background:transparent;border:1px solid "+C.border+";border-radius:6px;padding:3px 9px;font-size:11px;color:"+C.slate+";cursor:pointer'>View</button>"+
+        "</div>";
+    }).join("");
+
+    var partnerTypeCards=[
+      {icon:"⚖️",type:"CPA Firm",earn:"$78K/yr",c:"#0E8A7D"},
+      {icon:"📊",type:"Fractional CFO",earn:"$72K/yr",c:"#7C3AED"},
+      {icon:"📒",type:"Bookkeeper",earn:"$21K/yr",c:"#B45309"},
+      {icon:"🎯",type:"Business Coach",earn:"$13K/yr",c:"#1E3A8A"},
+      {icon:"💼",type:"Financial Advisor",earn:"$22K/yr",c:"#065F46"},
+      {icon:"🏛️",type:"Association",earn:"$16K/yr",c:"#92400E"},
+    ].map(function(p){
+      return "<div style='background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-left:3px solid "+p.c+";border-radius:9px;padding:10px 12px'>"+
+        "<div style='font-size:16px;margin-bottom:4px'>"+p.icon+"</div>"+
+        "<div style='font-size:12px;font-weight:600;color:white;margin-bottom:2px'>"+p.type+"</div>"+
+        "<div style='font-size:13px;font-weight:700;color:"+p.c+";font-family:monospace'>"+p.earn+"</div>"+
+        "<div style='font-size:10px;color:rgba(255,255,255,.4);margin-top:1px'>est. annual</div></div>";
+    }).join("");
+
+    return "<div class='slide'>"
+      +"<div style='margin-bottom:14px'><h1 style='font-size:21px;font-weight:700;color:"+C.ink+"'>Partner Portal</h1>"
+      +"<p style='font-size:13px;color:"+C.slate+";margin-top:3px'>How CPA firms, fractional CFOs, bookkeepers, and advisors earn recurring revenue by bringing CCPC clients to Elevare</p></div>"
+
+      +"<div style='background:"+C.navyMid+";border-radius:14px;padding:14px 16px;margin-bottom:16px'>"
+        +"<div style='font-size:12px;font-weight:600;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px'>6 partner types — estimated annual earnings</div>"
+        +"<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px'>"+partnerTypeCards+"</div>"
+        +"<div style='background:rgba(14,138,125,.15);border:1px solid rgba(14,138,125,.3);border-radius:8px;padding:10px 14px'>"
+          +"<div style='font-size:12px;font-weight:600;color:#12B3A3;margin-bottom:6px'>Become a partner — 3 steps</div>"
+          +"<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px'>"
+            +["1. Apply at elevarefinanceos.ca/partners — receive partner code in 48hrs",
+               "2. Share personalised referral link — clients get 20% off first year",
+               "3. Earn 15–30% recurring commission monthly — no caps, no clawbacks"].map(function(s){
+               return "<div style='font-size:11.5px;color:rgba(255,255,255,.6)'>"+s+"</div>";}).join("")
+          +"</div>"
+        +"</div>"
+      +"</div>"
+
+      +"<div style='font-size:13px;font-weight:600;color:"+C.ink+";margin-bottom:10px'>Advisor dashboard — what your CPA firm or fractional CFO sees across all clients</div>"
+
+      +"<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px'>"
+        +[{l:"Clients monitored",v:partnerClients.length,s:"Active on Elevare",c:C.teal},
+          {l:"Alerts this week",v:totalAlerts,s:redCount+" urgent · "+amberCount+" pending",c:redCount>0?C.red:C.amber},
+          {l:"Monthly commission",v:"$"+totalCommission,s:"20% of "+partnerClients.length+" Growth plans",c:C.green},
+          {l:"Avg health score",v:avgScore+"/100",s:"Across all clients",c:C.teal}]
+        .map(function(k){
+          return "<div style='background:white;border:1px solid "+C.border+";border-radius:10px;padding:11px 14px'>"
+            +"<div style='font-size:11px;color:"+C.slate+";margin-bottom:3px'>"+k.l+"</div>"
+            +"<div style='font-size:18px;font-weight:700;color:"+k.c+";font-family:monospace'>"+k.v+"</div>"
+            +"<div style='font-size:10.5px;color:"+C.slate+";margin-top:1px'>"+k.s+"</div></div>";}).join("")
+      +"</div>"
+
+      +"<div style='background:white;border:1px solid "+C.border+";border-radius:12px;overflow:hidden;margin-bottom:14px'>"
+        +"<div style='padding:10px 16px;border-bottom:1px solid "+C.border+";display:flex;align-items:center;justify-content:space-between'>"
+          +"<span style='font-size:13px;font-weight:600;color:"+C.ink+"'>Client portfolio — "+partnerClients.length+" active accounts</span>"
+          +"<button onclick='alert(\"Onboard new client — generates personalised invitation link\")' style='background:"+C.teal+";color:white;border:none;border-radius:7px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer'>+ Onboard client</button>"
+        +"</div>"
+        +partnerRows
+      +"</div>"
+
+      +(totalAlerts>0?
+        "<div style='background:white;border:1px solid "+C.border+";border-radius:12px;overflow:hidden;margin-bottom:14px'>"
+          +"<div style='padding:10px 16px;border-bottom:1px solid "+C.border+";font-size:13px;font-weight:600;color:"+C.ink+"'>Cross-client alert feed — "+totalAlerts+" items need attention</div>"
+          +alertRows
+        +"</div>":"")
+
+      +"<div style='background:"+C.navyMid+";border-radius:12px;padding:14px 18px'>"
+        +"<div style='font-size:13px;font-weight:600;color:white;margin-bottom:12px'>Partner revenue summary — "+new Date().toLocaleDateString("en-CA",{month:"long",year:"numeric"})+"</div>"
+        +"<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px'>"
+          +[{l:"Subscription commissions",v:"$"+totalCommission,s:"20% of "+partnerClients.length+" Growth plans",c:"#12B3A3"},
+            {l:"Advisory billings triggered",v:"$2,100",s:"7 Elevare alerts → billable calls this month",c:"#FCD34D"},
+            {l:"Total partner earnings",v:"$"+(totalCommission+2100),s:"This month",c:"white"}]
+          .map(function(k){
+            return "<div style='background:rgba(255,255,255,.07);border-radius:9px;padding:10px 14px'>"
+              +"<div style='font-size:11px;color:rgba(255,255,255,.5);margin-bottom:3px'>"+k.l+"</div>"
+              +"<div style='font-size:18px;font-weight:700;color:"+k.c+";font-family:monospace'>"+k.v+"</div>"
+              +"<div style='font-size:10.5px;color:rgba(255,255,255,.35);margin-top:1px'>"+k.s+"</div></div>";}).join("")
+        +"</div>"
+        +"<div style='font-size:11px;color:rgba(255,255,255,.4);line-height:1.6'>Commissions paid on the 1st of each month via direct deposit. Earned for lifetime of client relationship — no caps, no clawbacks. Apply at elevarefinanceos.ca/partners</div>"
+      +"</div>"
+    +"</div>";}
+
   return`<div class="slide"><p style="color:${C.slate}">Select a tab.</p></div>`;
 }
 
@@ -7553,6 +8595,519 @@ function renderCPAConnect(){
 S.cpaTab="cpaDash";
 S.cpaSelectedFirm="f001";
 S.cpaFormat="json";
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FREE TOOLS — Freemium conversion funnel
+// 7 free calculators that solve real problems with a clear ceiling
+// Each shows a specific dollar amount to unlock with upgrade
+// ══════════════════════════════════════════════════════════════════════════════
+
+S.ftTab="ft-salary";
+
+// Free tools state — user inputs (independent of main S.form)
+S.ft={
+  income:387000, salary:95000, province:"BC", employees:8,
+  passive:38000, revenue:1200000, bankBalance:142000,
+  industry:"construction", rrspRoom:28400,
+};
+
+// 2026 combined corporate + personal tax rates by province (blended estimate)
+const FT_TAX={
+  BC:{sbd:0.11,gen:0.265,personalTop:0.535,divNonElig:0.489,divElig:0.362},
+  AB:{sbd:0.11,gen:0.23,personalTop:0.48,divNonElig:0.423,divElig:0.31},
+  ON:{sbd:0.125,gen:0.265,personalTop:0.5353,divNonElig:0.472,divElig:0.394},
+  QC:{sbd:0.14,gen:0.265,personalTop:0.5353,divNonElig:0.492,divElig:0.404},
+};
+
+function ftTax(prov){return FT_TAX[prov]||FT_TAX.BC;}
+
+// Upgrade prompt component
+function ftUpgrade(msg,tier,saving){
+  const colors={Starter:"#0E8A7D",Growth:"#7C3AED",Pro:"#1E3A8A",Advisor:"#B45309"};
+  const c=colors[tier]||colors.Starter;
+  return`<div style="background:${c}11;border:1.5px solid ${c}44;border-radius:10px;padding:12px 14px;margin-top:14px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:600;color:${c};text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">${tier} plan — ${saving}</div>
+        <div style="font-size:12.5px;color:${C.ink};line-height:1.55">${msg}</div>
+      </div>
+      <button onclick="alert('In production: clicking this starts the Stripe checkout for the ${tier} plan at the relevant price point. The client stays in the app — no redirect.')" style="background:${c};color:white;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;flex-shrink:0">Unlock ${tier} →</button>
+    </div>
+  </div>`;
+}
+
+// Locked feature overlay
+function ftLock(label){
+  return`<div style="background:rgba(100,116,139,.08);border:1.5px dashed rgba(100,116,139,.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-top:6px">
+    <span style="font-size:16px">🔒</span>
+    <span style="font-size:12px;color:${C.slate}">${label}</span>
+  </div>`;
+}
+
+function renderFreeTools(){
+  const tab=S.ftTab||"ft-salary";
+  const ft=S.ft;
+  const T=ftTax(ft.province);
+
+  // ── HEADER ────────────────────────────────────────────────────────────────
+  const header=`<div style="background:linear-gradient(135deg,${C.navyMid},rgba(13,33,55,.95));border-radius:14px;padding:14px 18px;margin-bottom:16px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="background:#FCD34D22;color:#FCD34D;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">FREE TOOLS</span>
+          <span style="font-size:11px;color:rgba(255,255,255,.4)">No account required · No credit card</span>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:white;margin-bottom:3px">7 free CCPC calculators — see exactly what you are leaving on the table</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5)">Real calculations · 2026 CRA rates · Upgrade when ready to act on the results</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${[["Starter","$99/mo"],["Growth","$199/mo"],["Pro","$399/mo"]].map(([t,p])=>`<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:5px 10px;text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,.4)">${t}</div>
+          <div style="font-size:13px;font-weight:600;color:white">${p}</div>
+        </div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+
+  // ── TOOL 1 — SALARY/DIVIDEND QUICK CALCULATOR ────────────────────────────
+  if(tab==="ft-salary"){
+    const inc=ft.income, sal=ft.salary, prov=ft.province;
+    const T=ftTax(prov);
+    // Current combined tax
+    const corpTax=Math.round((inc-sal)*T.sbd);
+    const personalTax=Math.round(sal*0.32+Math.max(0,sal-97069)*0.07);
+    const divTax=Math.round(45000*T.divNonElig);
+    const currentTotal=corpTax+personalTax+divTax;
+    // Optimal estimate (simplified — full calc behind paywall)
+    const optSalLo=Math.round(inc*0.28);
+    const optSalHi=Math.round(inc*0.35);
+    const estSavingLo=8200, estSavingHi=14000;
+    const savingRange=`$${estSavingLo.toLocaleString()}–$${estSavingHi.toLocaleString()}`;
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Salary/Dividend Quick Calculator</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">Are you on the optimal salary/dividend split? Enter your numbers to find out.</p>
+          ${[
+            {label:"Corporate income (net profit before owner salary)",key:"income",val:ft.income,type:"number"},
+            {label:"Current owner salary (T4)",key:"salary",val:ft.salary,type:"number"},
+            {label:"Province",key:"province",val:ft.province,type:"select",opts:["BC","AB","ON","QC"]},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            ${f.type==="select"
+              ?`<select onchange="S.ft.${f.key}=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">${f.opts.map(o=>`<option value="${o}" ${f.val===o?"selected":""}>${o}</option>`).join("")}</select>`
+              :`<input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">`
+            }
+          </div>`).join("")}
+        </div>
+        <div>
+          <div style="background:${C.mist};border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Your current tax position</div>
+            ${[
+              {l:"Corporate income",v:fmt(inc)},
+              {l:"Owner salary (T4)",v:fmt(sal)},
+              {l:"Est. corporate tax (SBD rate)",v:fmt(corpTax),c:C.red},
+              {l:"Est. personal income tax",v:fmt(personalTax),c:C.red},
+              {l:"Est. dividend tax",v:fmt(divTax),c:C.red},
+            ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:12px;color:${C.slate}">${r.l}</span>
+              <span style="font-size:12.5px;font-weight:600;color:${r.c||C.ink};font-family:'DM Mono',monospace">${r.v}</span>
+            </div>`).join("")}
+            <div style="border-top:1px solid ${C.border};padding-top:8px;margin-top:4px;display:flex;justify-content:space-between">
+              <span style="font-size:13px;font-weight:600;color:${C.ink}">Total est. tax burden</span>
+              <span style="font-size:14px;font-weight:700;color:${C.red};font-family:'DM Mono',monospace">${fmt(currentTotal)}</span>
+            </div>
+          </div>
+          <div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:${C.green};margin-bottom:4px">Estimated optimisation saving</div>
+            <div style="font-size:26px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace">${savingRange}</div>
+            <div style="font-size:11.5px;color:${C.ink};margin-top:4px">By shifting to an estimated optimal salary of ${fmt(optSalLo)}–${fmt(optSalHi)}</div>
+          </div>
+          ${ftLock("Exact optimal salary · CPP1+CPP2+EI employer cost at each salary level · RRSP room at each split · Mid-year salary alert when income changes")}
+          ${ftUpgrade(`Your estimated saving is <strong>${savingRange}</strong>. TaxReady shows the exact salary that minimises your combined tax to the dollar — and alerts you in September when your year-to-date income changes the optimal split.`,"Starter","unlock exact saving")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 2 — GRANT ELIGIBILITY SCAN ──────────────────────────────────────
+  if(tab==="ft-grants"){
+    const rev=ft.revenue, emp=ft.employees, prov=ft.province, ind=ft.industry;
+    // Calculate matches (simplified version of grMatchedGrants)
+    const allMatches=GRANTS_DB.filter(g=>g.minRevenue<=rev&&g.maxRevenue>=rev&&g.minEmployees<=emp);
+    const topThree=allMatches.slice(0,3);
+    const hiddenCount=Math.max(0,allMatches.length-3);
+    const totalPotential=allMatches.reduce((a,g)=>a+g.realistic,0);
+    const hiddenPotential=allMatches.slice(3).reduce((a,g)=>a+g.realistic,0);
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Grant Eligibility Scan</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">See how many government programs your CCPC qualifies for — and the total funding available.</p>
+          ${[
+            {label:"Annual revenue",key:"revenue",val:ft.revenue,type:"number"},
+            {label:"Employees",key:"employees",val:ft.employees,type:"number"},
+            {label:"Province",key:"province",val:ft.province,type:"select",opts:["BC","AB","ON","QC"]},
+            {label:"Industry",key:"industry",val:ft.industry,type:"select",opts:["construction","healthcare","tech","manufacturing","retail","professional"]},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            ${f.type==="select"
+              ?`<select onchange="S.ft.${f.key}=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">${f.opts.map(o=>`<option value="${o}" ${f.val===o?"selected":""}>${o}</option>`).join("")}</select>`
+              :`<input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">`
+            }
+          </div>`).join("")}
+        </div>
+        <div>
+          <div style="background:${C.navyMid};border-radius:12px;padding:14px 16px;margin-bottom:12px">
+            <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px">Total programs matched</div>
+            <div style="font-size:36px;font-weight:700;color:white;font-family:'DM Mono',monospace">${allMatches.length}</div>
+            <div style="font-size:13px;color:#FCD34D;font-weight:600">Up to ${fmt(totalPotential)} in potential funding</div>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:8px">Your top 3 matches (free)</div>
+          ${topThree.map((g,i)=>`<div style="background:white;border:1px solid ${C.border};border-radius:9px;padding:11px 14px;margin-bottom:8px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:${C.ink};margin-bottom:2px">${g.name}</div>
+                <div style="font-size:11px;color:${C.slate}">${g.type} · ${g.level}</div>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace;white-space:nowrap">${fmt(g.realistic)}</div>
+            </div>
+          </div>`).join("")}
+          ${hiddenCount>0?`<div style="background:${C.mist};border:1.5px dashed ${C.border};border-radius:9px;padding:11px 14px;text-align:center;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:600;color:${C.slate};margin-bottom:2px">+${hiddenCount} more programs locked</div>
+            <div style="font-size:12px;color:${C.slate}">Additional ${fmt(hiddenPotential)} in potential funding — deadlines, approval probability, and application guides included</div>
+          </div>`:""}
+          ${ftUpgrade(`You qualify for <strong>${hiddenCount} additional programs</strong> beyond these 3 — totalling <strong>${fmt(hiddenPotential)}</strong> in additional potential funding. GrantsReady shows all ${allMatches.length} matches with deadlines, approval probability, and a one-click application tracker.`,"Starter","see all "+allMatches.length+" programs")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 3 — PASSIVE INCOME HEALTH CHECK ────────────────────────────────
+  if(tab==="ft-passive"){
+    const pass=ft.passive;
+    const threshold=50000;
+    const above=Math.max(0,pass-threshold);
+    const sbdReduction=above*5;
+    const taxCost=Math.round(sbdReduction*T.sbd);
+    const isRed=pass>threshold;
+    const isAmber=pass>40000&&pass<=threshold;
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Passive Income Health Check</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">Check whether your investment income is triggering the Small Business Deduction clawback — and how much it is costing you.</p>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">Annual passive/investment income ($)</label>
+            <input type="number" value="${pass}" onchange="S.ft.passive=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+            <div style="font-size:11px;color:${C.slate};margin-top:4px">Include: investment income, rental income, interest, taxable capital gains</div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">Province</label>
+            <select onchange="S.ft.province=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">
+              ${["BC","AB","ON","QC"].map(p=>`<option value="${p}" ${ft.province===p?"selected":""}>${p}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div>
+          <!-- Status indicator -->
+          <div style="background:${isRed?C.redLt:isAmber?C.amberLt:C.greenLt};border:2px solid ${isRed?"#FCA5A5":isAmber?"#FCD34D":"#A7F3D0"};border-radius:12px;padding:16px;margin-bottom:12px;text-align:center">
+            <div style="font-size:2rem;margin-bottom:6px">${isRed?"🔴":isAmber?"🟡":"🟢"}</div>
+            <div style="font-size:15px;font-weight:700;color:${isRed?C.red:isAmber?C.amber:C.green};margin-bottom:4px">
+              ${isRed?"SBD Clawback Active":isAmber?"Approaching Threshold":"Below Threshold — Safe"}
+            </div>
+            <div style="font-size:12px;color:${C.ink}">
+              ${isRed?`$${pass.toLocaleString()} passive income — $${above.toLocaleString()} above $50K threshold`:
+                isAmber?`$${pass.toLocaleString()} passive — $${(threshold-pass).toLocaleString()} below $50K threshold`:
+                `$${pass.toLocaleString()} passive — $${(threshold-pass).toLocaleString()} of safety margin remaining`}
+            </div>
+          </div>
+          ${isRed?`<div style="background:white;border:1px solid ${C.border};border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:${C.red};margin-bottom:8px">Clawback calculation</div>
+            ${[
+              {l:"Passive income above $50K",v:`$${above.toLocaleString()}`},
+              {l:"SBD reduction ($5 per $1 above threshold)",v:`$${sbdReduction.toLocaleString()} less SBD`},
+              {l:"Additional corporate tax cost",v:fmt(taxCost),bold:true,c:C.red},
+              {l:"Tax rate this creates",v:"26.5% instead of 11%",c:C.red},
+            ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:11.5px;color:${C.slate}">${r.l}</span>
+              <span style="font-size:12px;font-weight:${r.bold?700:500};color:${r.c||C.ink};font-family:'DM Mono',monospace">${r.v}</span>
+            </div>`).join("")}
+          </div>`:
+          `<div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:12.5px;color:${C.green};line-height:1.6">Your SBD is fully protected at this passive income level. Continue monitoring as investment returns accumulate — the threshold resets each fiscal year.</div>
+          </div>`}
+          ${ftLock("3 strategies to reduce the clawback · RDTOH balance and refund timing · Eligible dividend strategy · Monthly monitoring alert before December 31")}
+          ${isRed?ftUpgrade(`You have until December 31 to act. TaxReady shows the <strong>3 strategies</strong> that could recover up to <strong>${fmt(taxCost)}</strong> this year — ranked by ease of implementation and impact.`,"Starter","unlock recovery strategies"):
+          ftUpgrade("Monitor your passive income monthly and get an alert if you approach the $50,000 threshold — before there is a problem, not after.","Starter","enable monthly monitoring")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 4 — PAYROLL COMPLIANCE CHECKER ─────────────────────────────────
+  if(tab==="ft-payroll"){
+    const sal=ft.salary, emp=ft.employees;
+    const cpp2Applies=sal>74600;
+    const cpp2Band=Math.max(0,Math.min(sal,85000)-74600);
+    const cpp2Correct=Math.round(cpp2Band*0.04);
+    const cpp2Wrong=Math.round(cpp2Band*0.0595);
+    const cpp2Err=cpp2Wrong-cpp2Correct;
+    const totalCpp2Err=cpp2Err*emp;
+    const eiSaving=Math.round(Math.min(emp,5)*600);
+    const flags=[
+      {ok:!cpp2Applies||cpp2Err===0,
+       title:"CPP2 rate — 4.00% on $"+(74600).toLocaleString()+"–$"+(85000).toLocaleString()+" band",
+       issue:cpp2Applies?`Your salary of ${fmt(sal)} triggers CPP2. If payroll software uses 5.95% instead of 4.00%, you are over-deducting ${fmt(cpp2Err)}/employee — ${fmt(totalCpp2Err)} across ${emp} employees.`:"Salary below $74,600 — CPP2 does not apply",
+       action:"Verify CPP2 rate setting in your payroll software",
+       cost:totalCpp2Err>0?totalCpp2Err:null},
+      {ok:false,
+       title:"EI reduced premium eligibility",
+       issue:`With ${emp} employees, if you offer a qualifying short-term disability plan, you may qualify for a reduced EI employer premium rate. Potential saving: ~${fmt(eiSaving)}/year. Must apply to Service Canada before January 1.`,
+       action:"Check with your benefits provider — apply to Service Canada if eligible",
+       cost:eiSaving},
+      {ok:false,
+       title:"T4 Box 16A (CPP2) — required on all 2026 T4 slips",
+       issue:"All 2026 T4 slips must disaggregate CPP1 (Box 16) from CPP2 (Box 16A). Confirm your payroll software generates both boxes — deadline February 28.",
+       action:"Check payroll software T4 settings before year-end",
+       cost:null},
+      {ok:true,
+       title:"T4 filing deadline — February 28, 2027",
+       issue:"T4 slips must be filed with CRA and distributed to employees by February 28. Late filing: $10/slip/day (max $1,000 for first 100 slips).",
+       action:"Set reminder in Intelligence OS → Regulatory Calendar",
+       cost:null},
+    ];
+    const issues=flags.filter(f=>!f.ok);
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Payroll Compliance Checker</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">Check your 2026 payroll compliance status — CPP2, EI, and T4 requirements in 60 seconds.</p>
+          ${[
+            {label:"Owner salary (T4)",key:"salary",val:ft.salary,type:"number"},
+            {label:"Total employees (including owner on T4)",key:"employees",val:ft.employees,type:"number"},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            <input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+          </div>`).join("")}
+          <div style="background:${C.mist};border-radius:8px;padding:10px 12px">
+            <div style="font-size:11px;font-weight:600;color:${C.slate};margin-bottom:6px">2026 CPP2 quick reference</div>
+            <div style="font-size:11px;color:${C.ink};line-height:1.7">CPP1: 5.95% on earnings $3,500–$74,600 (max $4,230/year employer)<br>CPP2: <strong>4.00%</strong> on earnings $74,600–$85,000 (max $416/year employer)<br>EI: 2.324% employer × employee EI premium (max earnings $63,200)</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:10px">Compliance status — ${issues.length} item${issues.length===1?"":"s"} to review</div>
+          ${flags.map(f=>`<div style="background:${f.ok?C.greenLt:"white"};border:1px solid ${f.ok?"#A7F3D0":C.border};border-left:3px solid ${f.ok?C.green:C.amber};border-radius:9px;padding:11px 14px;margin-bottom:8px">
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
+              <span style="font-size:13px;flex-shrink:0">${f.ok?"✅":"⚠️"}</span>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:2px">${f.title}</div>
+                <div style="font-size:11.5px;color:${C.slate};line-height:1.5">${f.issue}</div>
+                ${f.cost?`<div style="font-size:11px;color:${C.red};font-weight:500;margin-top:2px">Potential cost if uncorrected: ${fmt(f.cost)}/year</div>`:""}
+              </div>
+            </div>
+          </div>`).join("")}
+          ${ftLock("Step-by-step fix for your specific payroll software (Payworks, ADP, QBO Payroll) · Service Canada EI application guide · Year-end payroll compliance calendar with deadline alerts")}
+          ${ftUpgrade(`Your payroll has <strong>${issues.length} items to verify</strong> before February 28. TaxReady shows the exact steps for your payroll software and adds all deadlines to your Regulatory Calendar automatically.`,"Starter","unlock payroll compliance")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 5 — CASH FLOW STRESS TEST ──────────────────────────────────────
+  if(tab==="ft-cashflow"){
+    const rev=ft.revenue, emp=ft.employees, bal=ft.bankBalance, prov=ft.province;
+    const monthlyRev=Math.round(rev/12);
+    const payroll=Math.round(emp*6500); // avg $78K/year per employee
+    const gst=Math.round(monthlyRev*0.05*0.58); // net GST approx
+    const craInstalment=Math.round(rev*0.03); // rough quarterly amount
+    const total90=payroll*3+gst*3+craInstalment;
+    const gap=bal-total90;
+    const isRisk=gap<10000;
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Cash Flow Stress Test</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">See your three biggest committed cash outflows in the next 90 days — and whether your current balance covers them.</p>
+          ${[
+            {label:"Current bank balance",key:"bankBalance",val:ft.bankBalance,type:"number"},
+            {label:"Annual revenue (for GST estimate)",key:"revenue",val:ft.revenue,type:"number"},
+            {label:"Number of employees",key:"employees",val:ft.employees,type:"number"},
+            {label:"Province",key:"province",val:ft.province,type:"select",opts:["BC","AB","ON","QC"]},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            ${f.type==="select"
+              ?`<select onchange="S.ft.${f.key}=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">${f.opts.map(o=>`<option value="${o}" ${f.val===o?"selected":""}>${o}</option>`).join("")}</select>`
+              :`<input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">`
+            }
+          </div>`).join("")}
+        </div>
+        <div>
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:10px">Committed outflows — next 90 days</div>
+            ${[
+              {l:"Payroll (3 months × "+fmt(payroll)+")",v:fmt(payroll*3),c:C.ink},
+              {l:"GST/HST remittance (est.)",v:fmt(gst*3),c:C.ink},
+              {l:"CRA corporate tax instalment (est.)",v:fmt(craInstalment),c:C.ink},
+            ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px">
+              <span style="font-size:12px;color:${C.slate}">${r.l}</span>
+              <span style="font-size:12.5px;font-weight:600;color:${r.c};font-family:'DM Mono',monospace">${r.v}</span>
+            </div>`).join("")}
+            <div style="border-top:1px solid ${C.border};padding-top:8px;margin-top:4px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:13px;font-weight:600;color:${C.ink}">Total 90-day committed</span>
+                <span style="font-size:14px;font-weight:700;color:${C.red};font-family:'DM Mono',monospace">${fmt(total90)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:13px;font-weight:600;color:${C.ink}">Current bank balance</span>
+                <span style="font-size:14px;font-weight:700;color:${C.teal};font-family:'DM Mono',monospace">${fmt(bal)}</span>
+              </div>
+              <div style="background:${isRisk?C.redLt:C.greenLt};border-radius:7px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;font-weight:600;color:${isRisk?C.red:C.green}">90-day buffer</span>
+                <span style="font-size:15px;font-weight:700;color:${isRisk?C.red:C.green};font-family:'DM Mono',monospace">${gap<0?"-":""}${fmt(Math.abs(gap))}</span>
+              </div>
+              ${isRisk?`<div style="font-size:11.5px;color:${C.red};margin-top:6px;line-height:1.5">⚠ Your buffer is ${gap<0?"negative — you are short "+fmt(Math.abs(gap)):"below $10,000 — one unexpected expense creates a payroll risk"}.</div>`:""}
+            </div>
+          </div>
+          ${ftLock("Day-by-day 30/60/90-day forecast connected to real bank data · Exact date your balance hits its lowest point · Payroll crisis alert 14 days in advance · GST/HST and CRA instalment injected from actual CRA account")}
+          ${ftUpgrade(`Connect your bank account for a <strong>real 30-day forecast</strong> showing the exact day your balance is lowest — and a crisis alert <strong>14 days before payroll day</strong> if your balance drops below threshold.`,"Growth","connect bank + unlock forecast")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 6 — QSBC HEALTH INDICATOR ──────────────────────────────────────
+  if(tab==="ft-qsbc"){
+    const pass=ft.passive, inc=ft.income;
+    const passiveRatio=pass/(pass+inc);
+    const estimatedActiveAssetPct=Math.min(98,Math.max(52,Math.round((1-passiveRatio*2.5)*100)));
+    const test90=estimatedActiveAssetPct>=90;
+    const test50=estimatedActiveAssetPct>=50;
+    const lcge=1275000;
+    const taxAtRisk=Math.round(lcge*0.267); // ~$340K at 50% inclusion, 53.5% marginal
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">QSBC Health Indicator</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">Is your Lifetime Capital Gains Exemption protected? A quick check of your Qualifying Small Business Corporation status.</p>
+          ${[
+            {label:"Corporate income (active business)",key:"income",val:ft.income,type:"number"},
+            {label:"Passive/investment income",key:"passive",val:ft.passive,type:"number"},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            <input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+          </div>`).join("")}
+          <div style="background:${C.sky};border:1px solid ${C.tealLt};border-radius:8px;padding:10px 12px">
+            <div style="font-size:11px;font-weight:600;color:${C.teal};margin-bottom:4px">2026 LCGE amount</div>
+            <div style="font-size:20px;font-weight:700;color:${C.teal};font-family:'DM Mono',monospace">$${lcge.toLocaleString()}</div>
+            <div style="font-size:11px;color:${C.ink};margin-top:2px">Tax-free on sale of QSBC shares — worth up to ${fmt(taxAtRisk)} in tax savings</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:10px">QSBC test results — estimated</div>
+          ${[
+            {label:"90% Active Asset Test",desc:"At disposal: ≥90% of assets in active Canadian business",value:estimatedActiveAssetPct+"%",required:"≥90%",pass:test90},
+            {label:"50% Holding Period Test",desc:"During 24 months prior: ≥50% in active business",value:estimatedActiveAssetPct+"%",required:"≥50%",pass:test50},
+            {label:"24-Month Holding Test",desc:"Shares held ≥24 months",value:"Assumed",required:"24 months",pass:true},
+          ].map(t=>`<div style="background:${t.pass?C.greenLt:C.redLt};border:1px solid ${t.pass?"#A7F3D0":"#FCA5A5"};border-radius:9px;padding:10px 12px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:12px;font-weight:600;color:${t.pass?C.green:C.red};margin-bottom:2px">${t.pass?"✓":"✗"} ${t.label}</div>
+                <div style="font-size:11px;color:${C.slate}">${t.desc}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-left:8px">
+                <div style="font-size:14px;font-weight:700;color:${t.pass?C.green:C.red};font-family:'DM Mono',monospace">${t.value}</div>
+                <div style="font-size:10px;color:${C.slate}">Need ${t.required}</div>
+              </div>
+            </div>
+          </div>`).join("")}
+          <div style="background:${C.amberLt};border:1px solid #FCD34D;border-radius:8px;padding:9px 12px;margin-bottom:10px">
+            <div style="font-size:11.5px;color:${C.amber};font-weight:500">These are estimated results based on income ratios only. Your actual active asset ratio requires balance sheet data to calculate precisely.</div>
+          </div>
+          ${ftLock("Exact active asset ratio from your balance sheet · Monthly QSBC monitoring · Purification alert if ratio drops below 90% · US revenue QSBC risk flag · Pre-exit restructuring timeline")}
+          ${ftUpgrade(`Your estimated QSBC status needs verification — your $${lcge.toLocaleString()} LCGE is worth up to <strong>${fmt(taxAtRisk)}</strong> in tax savings on exit. Connect your balance sheet for exact ratios and monthly monitoring.`,"Pro","verify QSBC + monitor monthly")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 7 — CPA YEAR-END PACKAGE PREVIEW ───────────────────────────────
+  if(tab==="ft-cpa"){
+    const inc=ft.income, sal=ft.salary, pass=ft.passive;
+    const sbd=Math.min(500000,Math.max(0,inc-Math.max(0,(pass-50000)*5)));
+    const schedules=[
+      {sched:"T2 Schedule 125",name:"Business Income",fields:12,sample:`Revenue: ${fmt(ft.revenue)} · Net income: ${fmt(inc)}`},
+      {sched:"T2 Schedule 7",name:"Aggregate Investment Income / SBD",fields:5,sample:`Active income: ${fmt(sbd)} · Passive: ${fmt(pass)}`},
+      {sched:"T2 Schedule 100",name:"Balance Sheet",fields:8,sample:"Total assets · Fixed assets · Retained earnings"},
+      {sched:"T2 Schedule 3",name:"Dividends / RDTOH",fields:4,sample:`Non-eligible dividends · RDTOH balance`},
+      {sched:"T4 Summary",name:"Employment Income",fields:6,sample:`Salary: ${fmt(sal)} · CPP1 · CPP2 · EI`},
+      {sched:"GST/HST Return",name:"Net Tax Reconciliation",fields:5,sample:"Net tax collected · ITC claimed · Balance owing"},
+    ];
+    const totalFields=schedules.reduce((a,s)=>a+s.fields,0);
+    const hoursStaved=Math.round(totalFields*0.12);
+    const cpaSaving=Math.round(hoursStaved*300);
+
+    return`<div class="slide">
+      ${header}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">CPA Year-End Package Preview</h2>
+          <p style="font-size:12px;color:${C.slate};margin-bottom:14px">See what your CPA Tax Connector export would contain — and how many hours it saves your accountant at T2 time.</p>
+          <div style="background:${C.navyMid};border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px">Show this to your accountant</div>
+            <div style="font-size:13px;color:white;line-height:1.6">"My accounting software can pre-fill <strong style="color:#FCD34D">${totalFields} T2 fields</strong> automatically — saving you approximately <strong style="color:#A7F3D0">${hoursStaved} hours</strong> of data gathering at year-end."</div>
+          </div>
+          ${[
+            {label:"Corporate income",key:"income",val:ft.income,type:"number"},
+            {label:"Owner salary (T4)",key:"salary",val:ft.salary,type:"number"},
+            {label:"Passive income",key:"passive",val:ft.passive,type:"number"},
+          ].map(f=>`<div style="margin-bottom:8px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:3px">${f.label}</label>
+            <input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:7px 10px;border:1px solid ${C.border};border-radius:7px;font-size:12px;box-sizing:border-box">
+          </div>`).join("")}
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:10px">Your T2 package would include</div>
+          ${schedules.map(s=>`<div style="background:white;border:1px solid ${C.border};border-radius:8px;padding:9px 12px;margin-bottom:7px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px">
+              <div>
+                <div style="font-size:11px;font-weight:600;color:${C.teal};margin-bottom:1px">${s.sched}</div>
+                <div style="font-size:12px;font-weight:500;color:${C.ink}">${s.name}</div>
+              </div>
+              <span style="background:${C.teal}22;color:${C.teal};font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;flex-shrink:0">${s.fields} fields</span>
+            </div>
+            <div style="font-size:11px;color:${C.slate}">${s.sample}</div>
+          </div>`).join("")}
+          <div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:9px;padding:10px 14px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:12.5px;font-weight:600;color:${C.green}">Total fields pre-filled</span>
+              <span style="font-size:18px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace">${totalFields}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;color:${C.green}">Est. accountant time saved</span>
+              <span style="font-size:14px;font-weight:600;color:${C.green}">${hoursStaved} hours (~${fmt(cpaSaving)})</span>
+            </div>
+          </div>
+          ${ftLock("Actual importable JSON/XML/CSV file for TaxCycle, DT Max, Taxprep, Profile, or Cantax · Secure 72-hour download link · Per-CPA firm permissions · Full audit trail")}
+          ${ftUpgrade(`Generate the actual T2 data package for your accountant — importable in one click into TaxCycle, DT Max, Taxprep, Profile, or Cantax. Saves your accountant <strong>${hoursStaved} hours</strong> at year-end (~<strong>${fmt(cpaSaving)}</strong>).`,"Growth","generate CPA package")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return`<div class="slide"><p style="color:${C.slate}">Select a free tool above.</p></div>`;
+}
 
 render();
 </script>
