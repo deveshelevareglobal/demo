@@ -2347,7 +2347,7 @@ const NAV_SCREENS=[
   {id:"profitpilot",label:"Profit Intel",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["ppvendor","Vendor Audit"],["ppbenchmark","Benchmarks"]]},
   {id:"planninghub",label:"Exit & Planning",subs:[["phbuysell","Buy/Sell Agreement"],["phdebt","Debt & Repayment Risk"],["phparter","Partnership Impact"]]},
   {id:"datagaps",label:"Data Intelligence",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgerp","ERP Connector"],["dgroi","ROI Calculator"]]},
-  {id:"freetools",label:"Basic",subs:[["ft-salary","Salary Optimizer"],["ft-grants","Grant Scan"],["ft-passive","Passive Income"],["ft-payroll","Payroll Check"],["ft-cashflow","Cash Stress Test"],["ft-qsbc","QSBC Health"],["ft-cpa","CPA Preview"]]},
+  {id:"freetools",label:"Basic",subs:[["ft-salary","Salary Optimizer"],["ft-grants","Grant Scan"],["ft-passive","Passive Income"],["ft-payroll","Payroll Check"],["ft-cashflow","Cash Stress Test"],["ft-qsbc","QSBC Health"],["ft-cpa","CPA Preview"],["ft-receipts","Receipt Capture"]]},
   {id:"mobile",label:"Mobile"},
   {id:"settings",label:"Settings",subs:[["profile","Profile"],["notifications","Notifications"],["integrations","Integrations"],["subscription","Subscription"],["advisor","Advisor"],["agent","AI Agent"]]},
 ];
@@ -8614,6 +8614,12 @@ S.ft={
   softwareCost:3200, profDevCost:1800, profFeesCost:1500, marketingCost:2400,
   investAmount:40000, investMix:"balanced", // "conservative"|"balanced"|"growth"
   customExpenses:[], // [{id, label, val}] — user-added expense categories
+  rrspRoomAvail:18000, rrspContribYTD:0, mobileBizPct:60, mobileAnnualCost:1200,
+  receipts:[
+    {id:1,vendor:"Staples",amount:84.20,category:"Software & subscriptions",date:"Jun 12",status:"categorized"},
+    {id:2,vendor:"Shell",amount:62.50,category:"Vehicle — business use",date:"Jun 10",status:"categorized"},
+    {id:3,vendor:"Starbucks",amount:18.75,category:"Client gifts & entertainment",date:"Jun 8",status:"review"},
+  ],
 };
 S.ftProfile=null; // null = gate not answered yet | {emp:"0"|"1-5"|"6+", retains:true|false}
 
@@ -8627,6 +8633,7 @@ function ftRelevance(profile){
     "ft-payroll":{relevant:false,why:"Applies once you run T4 payroll for staff beyond yourself"},
     "ft-qsbc":{relevant:false,why:"Matters when you're planning to sell or exit the business"},
     "ft-cpa":{relevant:true,why:"Useful for any CCPC at T2 time — saves accountant prep time regardless of size"},
+    "ft-receipts":{relevant:true,why:"Always relevant — capturing receipts as they happen feeds your expense claims automatically"},
   };
   if(!profile) return all;
   const out=JSON.parse(JSON.stringify(all));
@@ -8747,6 +8754,7 @@ function renderFreeTools(){
     "ft-payroll":{icon:"📋",label:"Payroll Check"},
     "ft-qsbc":{icon:"🎯",label:"QSBC Health"},
     "ft-cpa":{icon:"📦",label:"CPA Preview"},
+    "ft-receipts":{icon:"📸",label:"Receipt Capture"},
   };
   const sortedTabs=Object.keys(toolMeta).sort((a,b)=>(relevance[b].relevant?1:0)-(relevance[a].relevant?1:0));
   const toolGrid=`<div style="margin-bottom:14px">
@@ -8869,6 +8877,101 @@ function renderFreeTools(){
           ${ftUpgrade(`Your combined opportunity is <strong>$${combinedSavingLo.toLocaleString()}–$${combinedSavingHi.toLocaleString()}</strong>. The Solo tier shows the exact optimal split, flags which expense claims carry audit risk, and recalculates automatically as your income changes through the year.`,"Solo","unlock exact numbers")}
         </div>
       </div>
+
+      ${(()=>{
+        // ── TAX SAVING TIPS — RRSP, missed expenses, personal/business split ──
+        const rrspRoom=ft.rrspRoomAvail, rrspYTD=ft.rrspContribYTD;
+        const rrspGap=Math.max(0,rrspRoom-rrspYTD);
+        const marginalRate=sal>97069?0.3886:sal>53359?0.2920:0.2050; // rough BC combined marginal bands
+        const rrspTaxSaving=Math.round(rrspGap*marginalRate);
+
+        const missedExpenses=[
+          {item:"Bank & merchant fees",typical:"$200–$600/yr",note:"Business bank account fees, e-transfer fees, Stripe/Square processing fees — often paid from a personal card and never claimed"},
+          {item:"Liability / E&O insurance",typical:"$400–$1,800/yr",note:"Professional liability, errors & omissions, business property insurance"},
+          {item:"Accounting software",typical:"$200–$600/yr",note:"QuickBooks, Wave, FreshBooks subscriptions — distinct from the 'software' line if you track separately"},
+          {item:"Client gifts & entertainment",typical:"$300–$1,500/yr",note:"50% deductible — closing gifts, client meals, appreciation events"},
+          {item:"Health/dental premiums via PHSP",typical:"$1,500–$5,000/yr",note:"A Private Health Services Plan lets a CCPC pay owner medical/dental costs as a tax-deductible corporate expense instead of an after-tax personal expense"},
+          {item:"Continuing education & licensing",typical:"$500–$2,000/yr",note:"Annual license renewals, MLS/board fees, mandatory designation courses — frequently paid personally and forgotten at tax time"},
+        ];
+
+        return`<div style="margin-top:18px">
+          <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="background:#FCD34D22;color:#FCD34D;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">TAX SAVING TIPS</span>
+            </div>
+            <div style="font-size:15px;font-weight:700;color:white">Three places solo owners typically leave money on the table</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">RRSP room, expenses that get missed entirely, and the personal/business split on things you use for both.</div>
+          </div>
+
+          <!-- 1. RRSP opportunity -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:${C.ink};margin-bottom:2px">1. RRSP contribution room</div>
+                <div style="font-size:11.5px;color:${C.slate}">RRSP room only builds from T4 salary — not from dividends. If you've shifted toward dividends, your RRSP room may have stalled without you noticing.</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">RRSP room available this year</label>
+                <input type="number" value="${rrspRoom}" onchange="S.ft.rrspRoomAvail=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">Contributed so far this year</label>
+                <input type="number" value="${rrspYTD}" onchange="S.ft.rrspContribYTD=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+              </div>
+            </div>
+            ${rrspGap>500?`<div style="background:${C.greenLt};border-radius:8px;padding:10px 12px">
+              <div style="font-size:11.5px;color:${C.green};font-weight:600;margin-bottom:2px">Unused room: ${fmt(rrspGap)}</div>
+              <div style="font-size:18px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace">~${fmt(rrspTaxSaving)} in tax saved</div>
+              <div style="font-size:11px;color:${C.ink};margin-top:3px">If contributed before the deadline, at your estimated marginal rate. Note: this only helps if your income includes enough T4 salary to want the personal deduction — talk to your CPA about the salary-vs-dividend trade-off here.</div>
+            </div>`:`<div style="font-size:11.5px;color:${C.slate}">You're tracking close to your full RRSP room for the year — nothing obvious left on the table here.</div>`}
+          </div>
+
+          <!-- 2. Commonly missed expenses -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px 16px;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:700;color:${C.ink};margin-bottom:3px">2. Expenses solo owners commonly forget to claim</div>
+            <div style="font-size:11.5px;color:${C.slate};margin-bottom:10px">These rarely show up in the six categories above because they don't feel like "business expenses" in the moment they're paid.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              ${missedExpenses.map(m=>`<div style="background:${C.mist};border-radius:8px;padding:9px 11px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+                  <span style="font-size:11.5px;font-weight:600;color:${C.ink}">${m.item}</span>
+                  <span style="font-size:10.5px;color:${C.teal};font-weight:600;white-space:nowrap;margin-left:6px">${m.typical}</span>
+                </div>
+                <div style="font-size:10.5px;color:${C.slate};line-height:1.4">${m.note}</div>
+              </div>`).join("")}
+            </div>
+          </div>
+
+          <!-- 3. Personal/business split guidance — home, mobile, car -->
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;padding:14px 16px">
+            <div style="font-size:13px;font-weight:700;color:${C.ink};margin-bottom:3px">3. Getting the personal/business split right — home, mobile, vehicle</div>
+            <div style="font-size:11.5px;color:${C.slate};margin-bottom:12px">These three are where solo owners most often either under-claim (leaving money behind) or over-claim (creating audit risk) because the asset is used for both personal and business life.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div style="background:${C.mist};border-radius:9px;padding:11px 12px">
+                <div style="font-size:12px;font-weight:700;color:${C.ink};margin-bottom:5px">🏠 Home office</div>
+                <div style="font-size:10.5px;color:${C.slate};line-height:1.6">CRA expects a reasonable basis — typically square footage of the dedicated workspace ÷ total home square footage. A spare bedroom used only for work is defensible. Claiming 50% of your whole home rarely is. Your current input: <strong style="color:${C.ink}">${ft.homeOfficePct}%</strong></div>
+              </div>
+              <div style="background:${C.mist};border-radius:9px;padding:11px 12px">
+                <div style="font-size:12px;font-weight:700;color:${C.ink};margin-bottom:5px">📱 Mobile phone</div>
+                <div style="font-size:10.5px;color:${C.slate};line-height:1.6">Most solo owners use one phone for everything and either claim 100% (audit risk) or claim nothing (money left behind). A logged-usage or reasonable-estimate split, applied consistently, is the defensible middle.</div>
+                <div style="margin-top:7px">
+                  <label style="font-size:10px;color:${C.slate};display:block;margin-bottom:2px">Business use %</label>
+                  <input type="number" value="${ft.mobileBizPct}" onchange="S.ft.mobileBizPct=+this.value;render()" style="width:100%;padding:5px 8px;border:1px solid ${C.border};border-radius:5px;font-size:11px;box-sizing:border-box;margin-bottom:4px">
+                  <label style="font-size:10px;color:${C.slate};display:block;margin-bottom:2px">Annual phone cost</label>
+                  <input type="number" value="${ft.mobileAnnualCost}" onchange="S.ft.mobileAnnualCost=+this.value;render()" style="width:100%;padding:5px 8px;border:1px solid ${C.border};border-radius:5px;font-size:11px;box-sizing:border-box">
+                </div>
+                <div style="font-size:11px;font-weight:600;color:${C.teal};margin-top:6px">Claim: ${fmt(Math.round(ft.mobileAnnualCost*ft.mobileBizPct/100))}/yr</div>
+              </div>
+              <div style="background:${C.mist};border-radius:9px;padding:11px 12px">
+                <div style="font-size:12px;font-weight:700;color:${C.ink};margin-bottom:5px">🚗 Vehicle</div>
+                <div style="font-size:10.5px;color:${C.slate};line-height:1.6">CRA requires a mileage log distinguishing business vs. personal driving — not a flat guess. Commuting from home to a fixed office does not count as business mileage; driving to client sites and meetings does. Your current input: <strong style="color:${C.ink}">${ft.vehicleBizPct}%</strong></div>
+                <div style="font-size:10px;color:${C.amber};margin-top:5px">⚠ Without a mileage log, this is the single most commonly reassessed claim for solo CCPC owners.</div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      })()}
     </div>`;
     }
 
@@ -9391,6 +9494,85 @@ function renderFreeTools(){
           </div>
           ${ftLock("Actual importable JSON/XML/CSV file for TaxCycle, DT Max, Taxprep, Profile, or Cantax · Secure 72-hour download link · Per-CPA firm permissions · Full audit trail")}
           ${ftUpgrade(`Generate the actual T2 data package for your accountant — importable in one click into TaxCycle, DT Max, Taxprep, Profile, or Cantax. Saves your accountant <strong>${hoursStaved} hours</strong> at year-end (~<strong>${fmt(cpaSaving)}</strong>).`,"Growth","generate CPA package")}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── TOOL 8 — RECEIPT CAPTURE (mobile photo → auto-categorized expense) ────
+  if(tab==="ft-receipts"){
+    const receipts=ft.receipts||[];
+    const categorized=receipts.filter(r=>r.status==="categorized");
+    const needsReview=receipts.filter(r=>r.status==="review");
+    const totalCaptured=receipts.reduce((a,r)=>a+r.amount,0);
+    const categoryTotals={};
+    categorized.forEach(r=>{categoryTotals[r.category]=(categoryTotals[r.category]||0)+r.amount;});
+
+    return`<div class="slide">
+      ${header}
+      ${toolGrid}
+      <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="background:#FCD34D22;color:#FCD34D;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">RECEIPT CAPTURE</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:white">Snap a photo, it lands in the right expense category automatically</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Feeds directly into the Take-Home Optimizer's expense categories — no manual entry, no shoebox of receipts at tax time.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:10px">From your phone</h2>
+          <div style="background:white;border:2px dashed ${C.border};border-radius:14px;padding:24px 18px;text-align:center;margin-bottom:14px">
+            <div style="font-size:32px;margin-bottom:8px">📸</div>
+            <div style="font-size:13px;font-weight:600;color:${C.ink};margin-bottom:4px">Take a photo of any receipt</div>
+            <div style="font-size:11.5px;color:${C.slate};margin-bottom:14px">Gas, client lunch, software, supplies — anything you'd otherwise lose track of</div>
+            <button onclick="S.ft.receipts=S.ft.receipts||[];S.ft.receipts.push({id:Date.now(),vendor:'New receipt',amount:0,category:'Software & subscriptions',date:'Just now',status:'review'});render()" style="background:${C.teal};color:white;border:none;border-radius:9px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer">+ Simulate receipt capture</button>
+            <div style="font-size:10px;color:${C.slate};margin-top:8px">In the mobile app this opens your camera directly</div>
+          </div>
+          <div style="background:white;border:1px solid ${C.border};border-radius:10px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:600;color:${C.ink};margin-bottom:8px">This month so far</div>
+            ${[
+              {l:"Receipts captured",v:receipts.length,c:C.ink},
+              {l:"Auto-categorized",v:categorized.length,c:C.teal},
+              {l:"Needs your review",v:needsReview.length,c:needsReview.length>0?C.amber:C.slate},
+              {l:"Total captured",v:fmt(totalCaptured),c:C.ink},
+            ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11.5px;color:${C.slate}">${r.l}</span><span style="font-size:12px;font-weight:600;color:${r.c};font-family:'DM Mono',monospace">${r.v}</span></div>`).join("")}
+          </div>
+        </div>
+        <div>
+          <h2 style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:10px">Captured receipts</h2>
+          <div style="background:white;border:1px solid ${C.border};border-radius:12px;overflow:hidden;margin-bottom:12px">
+            ${receipts.length===0?`<div style="padding:20px;text-align:center;color:${C.slate};font-size:12px">No receipts captured yet — try the button on the left</div>`:
+            receipts.map((r,i)=>`<div style="padding:11px 14px;border-bottom:${i<receipts.length-1?`1px solid ${C.border}`:"none"};display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div style="flex:1;min-width:140px">
+                <div style="font-size:12.5px;font-weight:600;color:${C.ink}">${r.vendor}</div>
+                <div style="font-size:10.5px;color:${C.slate}">${r.date} · ${r.category}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:12.5px;font-weight:600;color:${C.ink};font-family:'DM Mono',monospace">${fmt(r.amount)}</span>
+                <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${r.status==="categorized"?C.greenLt:C.amberLt};color:${r.status==="categorized"?C.green:C.amber};font-weight:600">${r.status==="categorized"?"✓ Categorized":"Review"}</span>
+              </div>
+            </div>`).join("")}
+          </div>
+          ${Object.keys(categoryTotals).length>0?`<div style="background:${C.mist};border-radius:10px;padding:12px 14px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;color:${C.ink};margin-bottom:8px">Flowing into your Take-Home Optimizer expense categories</div>
+            ${Object.entries(categoryTotals).map(([cat,amt])=>`<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:${C.slate}">${cat}</span><span style="font-size:11.5px;font-weight:600;color:${C.teal};font-family:'DM Mono',monospace">+${fmt(amt)}</span></div>`).join("")}
+            <div style="font-size:10px;color:${C.slate};margin-top:6px">These amounts add directly to your expense claim totals — no need to re-enter anything in the Salary Optimizer.</div>
+          </div>`:""}
+          ${ftLock("Real OCR — auto-reads vendor, amount, date, GST/HST from the photo · Auto-categorization with audit-risk flagging · Unlimited receipt storage · Searchable receipt archive for CRA audit defence")}
+          ${ftUpgrade(`Your captured receipts total <strong>${fmt(totalCaptured)}</strong> this month. The Solo tier reads receipts automatically with OCR — no manual entry of vendor, amount, or date — and stores them permanently for CRA audit defence.`,"Solo","unlock auto-OCR")}
+        </div>
+      </div>
+
+      <div style="margin-top:18px;background:linear-gradient(135deg,${C.navyMid},rgba(13,33,55,.95));border-radius:12px;padding:16px 20px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:18px">🏦</span>
+              <span style="font-size:13px;font-weight:700;color:white">Want this automatic instead of manual?</span>
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.6">Connecting your business bank account means every business expense gets captured automatically — no photo needed — and your CashFlow Pilot forecast updates in real time so you always know what's coming in the next 90 days, not just what you've already spent.</div>
+          </div>
+          <button onclick="alert('Bank connection (Plaid Canada) is available starting on the Starter plan — upgrade to connect your account.')" style="background:${C.teal};color:white;border:none;border-radius:9px;padding:11px 18px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Connect bank account — Starter+</button>
         </div>
       </div>
     </div>`;
