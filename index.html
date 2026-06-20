@@ -2161,8 +2161,8 @@ function renderSettings(){
         <div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:3px">CURRENT PLAN</div><div style="font-size:20px;font-weight:700">Growth Plan</div><div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:2px">$199/mo · Billed monthly · Renews Dec 1</div></div>
         <div style="text-align:right"><div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:3px">NEXT INVOICE</div><div style="font-size:18px;font-weight:600">$199.00</div><div style="font-size:12px;color:rgba(255,255,255,.5)">Dec 1, 2026</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-        ${[{n:"Starter",p:"$99",curr:false},{n:"Growth",p:"$199",curr:true},{n:"Pro",p:"$299",curr:false}].map(p=>`<div style="background:${p.curr?C.sky:"white"};border:${p.curr?`2px solid ${C.teal}`:`1px solid ${C.border}`};border-radius:10px;padding:14px;text-align:center">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        ${[{n:"Solo",p:"$49",curr:false},{n:"Starter",p:"$99",curr:false},{n:"Growth",p:"$199",curr:true},{n:"Pro",p:"$399",curr:false}].map(p=>`<div style="background:${p.curr?C.sky:"white"};border:${p.curr?`2px solid ${C.teal}`:`1px solid ${C.border}`};border-radius:10px;padding:14px;text-align:center">
           <div style="font-size:13px;font-weight:600;color:${C.ink}">${p.n}</div><div style="font-size:18px;font-weight:700;color:${C.teal};margin:4px 0">${p.p}</div><div style="font-size:10px;color:${C.slate}">/month</div>
           ${p.curr?`<div style="margin-top:8px"><span style="background:${C.teal};color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">Current</span></div>`:
           `<button style="margin-top:8px;background:none;border:1px solid ${C.teal};color:${C.teal};border-radius:6px;padding:5px 10px;font-size:11px">Switch</button>`}
@@ -8609,6 +8609,10 @@ S.ft={
   income:387000, salary:95000, province:"BC", employees:8,
   passive:38000, revenue:1200000, bankBalance:142000,
   industry:"construction", rrspRoom:28400,
+  // Solo-specific: operational expenses + investing intent
+  homeOfficePct:15, vehicleBizPct:40, vehicleAnnualCost:9000,
+  softwareCost:3200, profDevCost:1800, profFeesCost:1500, marketingCost:2400,
+  investAmount:40000, investMix:"balanced", // "conservative"|"balanced"|"growth"
 };
 S.ftProfile=null; // null = gate not answered yet | {emp:"0"|"1-5"|"6+", retains:true|false}
 
@@ -8657,7 +8661,7 @@ function ftTax(prov){return FT_TAX[prov]||FT_TAX.BC;}
 
 // Upgrade prompt component
 function ftUpgrade(msg,tier,saving){
-  const colors={Starter:"#0E8A7D",Growth:"#7C3AED",Pro:"#1E3A8A",Advisor:"#B45309"};
+  const colors={Solo:"#B8860B",Starter:"#0E8A7D",Growth:"#7C3AED",Pro:"#1E3A8A",Advisor:"#B45309"};
   const c=colors[tier]||colors.Starter;
   return`<div style="background:${c}11;border:1.5px solid ${c}44;border-radius:10px;padding:12px 14px;margin-top:14px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -8725,7 +8729,7 @@ function renderFreeTools(){
         <div style="font-size:12px;color:rgba(255,255,255,.5)">Real calculations · 2026 CRA rates · Upgrade when ready to act on the results</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${[["Starter","$99/mo"],["Growth","$199/mo"],["Pro","$399/mo"]].map(([t,p])=>`<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:5px 10px;text-align:center">
+        ${[["Solo","$49/mo"],["Starter","$99/mo"],["Growth","$199/mo"],["Pro","$399/mo"]].map(([t,p])=>`<div style="background:${t==="Solo"?"rgba(252,211,77,.12)":"rgba(255,255,255,.06)"};border:1px solid ${t==="Solo"?"rgba(252,211,77,.3)":"rgba(255,255,255,.1)"};border-radius:7px;padding:5px 10px;text-align:center">
           <div style="font-size:10px;color:rgba(255,255,255,.4)">${t}</div>
           <div style="font-size:13px;font-weight:600;color:white">${p}</div>
         </div>`).join("")}
@@ -8774,6 +8778,89 @@ function renderFreeTools(){
     const estSavingLo=8200, estSavingHi=14000;
     const savingRange=`$${estSavingLo.toLocaleString()}–$${estSavingHi.toLocaleString()}`;
 
+    // ── SOLO: Take-Home Optimizer — salary + expense claiming combined ──────
+    if(solo){
+      const homeOfficeClaim=Math.round(inc*0.0008*ft.homeOfficePct); // rough proxy on a home-cost base
+      const vehicleClaim=Math.round(ft.vehicleAnnualCost*(ft.vehicleBizPct/100));
+      const expenseItems=[
+        {label:"Home office",pct:ft.homeOfficePct,key:"homeOfficePct",isPct:true,claim:homeOfficeClaim,note:"% of home used regularly and exclusively for business"},
+        {label:"Vehicle — business use",pct:ft.vehicleBizPct,key:"vehicleBizPct",isPct:true,claim:vehicleClaim,note:`${ft.vehicleBizPct}% of $${ft.vehicleAnnualCost.toLocaleString()} annual vehicle cost`},
+        {label:"Software & subscriptions",val:ft.softwareCost,key:"softwareCost",claim:ft.softwareCost,note:"Tools directly used for client work"},
+        {label:"Professional development",val:ft.profDevCost,key:"profDevCost",claim:ft.profDevCost,note:"Courses, certifications, licensing renewals"},
+        {label:"Professional fees",val:ft.profFeesCost,key:"profFeesCost",claim:ft.profFeesCost,note:"Bookkeeping, legal, association dues"},
+        {label:"Marketing",val:ft.marketingCost,key:"marketingCost",claim:ft.marketingCost,note:"Website, ads, business cards, listings"},
+      ];
+      const totalExpenseClaim=expenseItems.reduce((a,e)=>a+e.claim,0);
+      const expenseTaxSaved=Math.round(totalExpenseClaim*(T.sbd+0.05)); // corp + avoided personal draw effect, rough
+      const combinedSavingLo=estSavingLo+Math.round(expenseTaxSaved*0.6);
+      const combinedSavingHi=estSavingHi+expenseTaxSaved;
+
+      return`<div class="slide">
+      ${header}
+      ${toolGrid}
+      <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="background:#FCD34D22;color:#FCD34D;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">TAKE-HOME OPTIMIZER</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:white">For solo CCPC owners, salary and expenses are one decision — not two</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">How much you pull out as salary, how much you leave for dividends, and what you legitimately claim as business expenses all move the same number: your take-home after tax.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <h2 style="font-size:15px;font-weight:700;color:${C.ink};margin-bottom:10px">1. Income & salary</h2>
+          ${[
+            {label:"Corporate income (net profit before owner salary)",key:"income",val:ft.income,type:"number"},
+            {label:"Current owner salary (T4)",key:"salary",val:ft.salary,type:"number"},
+            {label:"Province",key:"province",val:ft.province,type:"select",opts:["BC","AB","ON","QC"]},
+          ].map(f=>`<div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">${f.label}</label>
+            ${f.type==="select"
+              ?`<select onchange="S.ft.${f.key}=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">${f.opts.map(o=>`<option value="${o}" ${f.val===o?"selected":""}>${o}</option>`).join("")}</select>`
+              :`<input type="number" value="${f.val}" onchange="S.ft.${f.key}=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">`
+            }
+          </div>`).join("")}
+          <h2 style="font-size:15px;font-weight:700;color:${C.ink};margin:18px 0 4px">2. Operational expenses you're claiming</h2>
+          <p style="font-size:11.5px;color:${C.slate};margin-bottom:10px">Every legitimate expense claimed here reduces corporate income before tax — and reduces how much salary you need to draw personally.</p>
+          ${expenseItems.map(e=>`<div style="margin-bottom:9px;background:white;border:1px solid ${C.border};border-radius:8px;padding:9px 11px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <label style="font-size:11.5px;font-weight:600;color:${C.ink}">${e.label}</label>
+              <span style="font-size:11.5px;font-weight:600;color:${C.teal};font-family:'DM Mono',monospace">${fmt(e.claim)}</span>
+            </div>
+            <input type="number" value="${e.isPct?e.pct:e.val}" onchange="S.ft.${e.key}=+this.value;render()" style="width:100%;padding:6px 9px;border:1px solid ${C.border};border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:3px">
+            <div style="font-size:10px;color:${C.slate}">${e.note}${e.isPct?" (%)":""}</div>
+          </div>`).join("")}
+        </div>
+        <div>
+          <div style="background:${C.mist};border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Your current position</div>
+            ${[
+              {l:"Corporate income",v:fmt(inc)},
+              {l:"Owner salary (T4)",v:fmt(sal)},
+              {l:"Claimed operational expenses",v:fmt(totalExpenseClaim),c:C.teal},
+              {l:"Est. corporate tax (SBD rate)",v:fmt(corpTax),c:C.red},
+              {l:"Est. personal income tax",v:fmt(personalTax),c:C.red},
+            ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:12px;color:${C.slate}">${r.l}</span>
+              <span style="font-size:12.5px;font-weight:600;color:${r.c||C.ink};font-family:'DM Mono',monospace">${r.v}</span>
+            </div>`).join("")}
+            <div style="border-top:1px solid ${C.border};padding-top:8px;margin-top:4px;display:flex;justify-content:space-between">
+              <span style="font-size:13px;font-weight:600;color:${C.ink}">Total est. tax burden</span>
+              <span style="font-size:14px;font-weight:700;color:${C.red};font-family:'DM Mono',monospace">${fmt(currentTotal)}</span>
+            </div>
+          </div>
+          <div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:${C.green};margin-bottom:4px">Combined opportunity — salary split + expense optimisation</div>
+            <div style="font-size:26px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace">$${combinedSavingLo.toLocaleString()}–$${combinedSavingHi.toLocaleString()}</div>
+            <div style="font-size:11.5px;color:${C.ink};margin-top:4px">From an optimal salary near ${fmt(optSalLo)}–${fmt(optSalHi)} plus fully substantiated expense claims</div>
+          </div>
+          ${ftLock("Exact optimal salary to the dollar · CRA-defensible expense category guidance with audit-risk flags · Combined take-home optimisation recalculated as income changes · Solo Investing module for retained earnings")}
+          ${ftUpgrade(`Your combined opportunity is <strong>$${combinedSavingLo.toLocaleString()}–$${combinedSavingHi.toLocaleString()}</strong>. The Solo tier shows the exact optimal split, flags which expense claims carry audit risk, and recalculates automatically as your income changes through the year.`,"Solo","unlock exact numbers")}
+        </div>
+      </div>
+    </div>`;
+    }
+
+    // ── NON-SOLO: original salary/dividend calculator ────────────────────────
     return`<div class="slide">
       ${header}
       ${toolGrid}
@@ -8781,7 +8868,6 @@ function renderFreeTools(){
         <div>
           <h2 style="font-size:16px;font-weight:700;color:${C.ink};margin-bottom:4px">Salary/Dividend Quick Calculator</h2>
           <p style="font-size:12px;color:${C.slate};margin-bottom:14px">Are you on the optimal salary/dividend split? Enter your numbers to find out.</p>
-          ${solo?`<div style="background:${C.amberLt};border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:11.5px;color:${C.ink};line-height:1.5">If your income is commission or contract-based and varies a lot month to month, the salary you set at the start of the year may no longer be optimal by Q3. Most solo CCPC owners set this once at incorporation and never revisit it.</div>`:""}
           ${[
             {label:"Corporate income (net profit before owner salary)",key:"income",val:ft.income,type:"number"},
             {label:"Current owner salary (T4)",key:"salary",val:ft.salary,type:"number"},
@@ -8818,7 +8904,7 @@ function renderFreeTools(){
             <div style="font-size:11.5px;color:${C.ink};margin-top:4px">By shifting to an estimated optimal salary of ${fmt(optSalLo)}–${fmt(optSalHi)}</div>
           </div>
           ${ftLock("Exact optimal salary · CPP1+CPP2+EI employer cost at each salary level · RRSP room at each split · Mid-year salary alert when income changes")}
-          ${ftUpgrade(solo?`Your estimated saving is <strong>${savingRange}</strong>. TaxReady recalculates this automatically as your commission income comes in — and flags it the moment a slow or strong quarter changes the optimal split, instead of waiting for next year's CPA meeting.`:`Your estimated saving is <strong>${savingRange}</strong>. TaxReady shows the exact salary that minimises your combined tax to the dollar — and alerts you in September when your year-to-date income changes the optimal split.`,"Starter","unlock exact saving")}
+          ${ftUpgrade(`Your estimated saving is <strong>${savingRange}</strong>. TaxReady shows the exact salary that minimises your combined tax to the dollar — and alerts you in September when your year-to-date income changes the optimal split.`,"Starter","unlock exact saving")}
         </div>
       </div>
     </div>`;
@@ -8942,6 +9028,88 @@ function renderFreeTools(){
           ftUpgrade("Monitor your passive income monthly and get an alert if you approach the $50,000 threshold — before there is a problem, not after.","Starter","enable monthly monitoring")}
         </div>
       </div>
+
+      ${solo&&S.ftProfile&&!S.ftProfile.retains?`<div style="margin-top:14px;background:${C.mist};border:1px dashed ${C.border};border-radius:10px;padding:13px 16px">
+        <div style="font-size:12px;font-weight:600;color:${C.ink};margin-bottom:3px">Investing guidance becomes relevant once you start retaining earnings</div>
+        <div style="font-size:11.5px;color:${C.slate};line-height:1.6">Right now you've told us your corp pays out everything each year — so there's nothing accumulating to invest. Many solo owners deliberately keep some earnings in the corp specifically because it's taxed lower there than a full personal draw — worth a conversation with your CPA if you haven't considered it. <a onclick="S.ftProfile=null;render()" style="color:${C.teal};cursor:pointer;text-decoration:underline">Change my answers</a> if that's something you're now considering.</div>
+      </div>`:""}
+      ${solo&&S.ftProfile&&S.ftProfile.retains?(()=>{
+        // ── SOLO INVESTING MODULE — investment type guidance at solo scale ──
+        const amt=ft.investAmount, mix=ft.investMix;
+        const mixProfiles={
+          conservative:{label:"Conservative — mostly GICs/savings",interestPct:80,divPct:15,gainsPct:5},
+          balanced:{label:"Balanced — mixed portfolio",interestPct:30,divPct:40,gainsPct:30},
+          growth:{label:"Growth — equity-focused",interestPct:5,divPct:35,gainsPct:60},
+        };
+        const m=mixProfiles[mix];
+        const interestAmt=Math.round(amt*m.interestPct/100);
+        const divAmt=Math.round(amt*m.divPct/100);
+        const gainsAmt=Math.round(amt*m.gainsPct/100);
+        const interestTaxCost=Math.round(interestAmt*0.05*0.5067); // approx 5% yield, ~50.67% eff rate
+        const divTaxCost=Math.round(divAmt*0.04*0.3833);
+        const gainsTaxCost=Math.round(gainsAmt*0.06*0.2534);
+        const totalAnnualTaxDrag=interestTaxCost+divTaxCost+gainsTaxCost;
+        const conservativeTotal=Math.round(amt*0.05*0.5067);
+        const potentialSaving=Math.max(0,conservativeTotal-totalAnnualTaxDrag);
+
+        return`<div style="margin-top:18px">
+          <div style="background:${C.navyMid};border-radius:12px;padding:14px 18px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="background:#FCD34D22;color:#FCD34D;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">SOLO INVESTING</span>
+            </div>
+            <div style="font-size:15px;font-weight:700;color:white">If you're keeping retained earnings in the corp, what you invest in matters more than how much</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Interest, dividends, and capital gains are taxed at meaningfully different rates inside a CCPC — even at solo scale.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+            <div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">Retained earnings available to invest</label>
+                <input type="number" value="${amt}" onchange="S.ft.investAmount=+this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;box-sizing:border-box">
+              </div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;font-weight:500;color:${C.slate};display:block;margin-bottom:4px">Current or planned investment mix</label>
+                <select onchange="S.ft.investMix=this.value;render()" style="width:100%;padding:8px 10px;border:1px solid ${C.border};border-radius:7px;font-size:13px;background:white">
+                  ${Object.entries(mixProfiles).map(([k,v])=>`<option value="${k}" ${mix===k?"selected":""}>${v.label}</option>`).join("")}
+                </select>
+              </div>
+              <div style="background:white;border:1px solid ${C.border};border-radius:9px;padding:11px 13px">
+                <div style="font-size:11px;font-weight:600;color:${C.ink};margin-bottom:8px">Estimated split at this mix</div>
+                ${[
+                  {l:"Interest (GICs, savings, bonds)",v:fmt(interestAmt),tax:"~50.67% effective rate",c:"#EF4444"},
+                  {l:"Eligible Canadian dividends",v:fmt(divAmt),tax:"~38.33% — refundable via ERDTOH",c:"#0E8A7D"},
+                  {l:"Capital gains (50% inclusion)",v:fmt(gainsAmt),tax:"~25.34% effective rate",c:"#7C3AED"},
+                ].map(r=>`<div style="margin-bottom:7px">
+                  <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:${C.ink}">${r.l}</span><span style="font-size:11.5px;font-weight:600;font-family:'DM Mono',monospace">${r.v}</span></div>
+                  <div style="font-size:10px;color:${r.c}">${r.tax}</div>
+                </div>`).join("")}
+              </div>
+            </div>
+            <div>
+              <div style="background:${C.mist};border-radius:12px;padding:16px;margin-bottom:12px">
+                <div style="font-size:11px;font-weight:600;color:${C.slate};text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">What this mix costs you in tax — per year</div>
+                ${[
+                  {l:"Interest income tax drag",v:fmt(interestTaxCost)},
+                  {l:"Dividend income tax drag (partly refundable)",v:fmt(divTaxCost)},
+                  {l:"Capital gains tax drag",v:fmt(gainsTaxCost)},
+                ].map(r=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;color:${C.slate}">${r.l}</span><span style="font-size:12.5px;font-weight:600;color:${C.red};font-family:'DM Mono',monospace">${r.v}</span></div>`).join("")}
+                <div style="border-top:1px solid ${C.border};padding-top:8px;margin-top:4px;display:flex;justify-content:space-between">
+                  <span style="font-size:13px;font-weight:600;color:${C.ink}">Total annual tax drag</span>
+                  <span style="font-size:14px;font-weight:700;color:${C.red};font-family:'DM Mono',monospace">${fmt(totalAnnualTaxDrag)}</span>
+                </div>
+              </div>
+              ${potentialSaving>500?`<div style="background:${C.greenLt};border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+                <div style="font-size:12px;font-weight:600;color:${C.green};margin-bottom:4px">Potential annual saving vs. an all-interest mix</div>
+                <div style="font-size:24px;font-weight:700;color:${C.green};font-family:'DM Mono',monospace">${fmt(potentialSaving)}</div>
+                <div style="font-size:11.5px;color:${C.ink};margin-top:4px">By holding more in eligible dividends and capital gains, less in interest-bearing accounts</div>
+              </div>`:`<div style="background:white;border:1px solid ${C.border};border-radius:10px;padding:12px 14px;margin-bottom:12px">
+                <div style="font-size:12px;color:${C.ink};line-height:1.6">Your current mix is already reasonably tax-efficient. The Solo tier tracks your NERDTOH/ERDTOH balances and tells you exactly when to declare a dividend to recover the refundable portion.</div>
+              </div>`}
+              ${ftLock("Full NERDTOH/ERDTOH tracking · Capital Dividend Account balance · Exact optimal dividend declaration amount and timing · Quarterly rebalancing alerts")}
+              ${ftUpgrade(`See your exact NERDTOH and ERDTOH balances and the precise dividend amount that recovers your refundable tax — recalculated every quarter as your investments grow.`,"Solo","unlock investing intelligence")}
+            </div>
+          </div>
+        </div>`;
+      })():""}
     </div>`;
   }
 
