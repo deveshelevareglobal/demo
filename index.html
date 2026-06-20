@@ -2347,7 +2347,7 @@ const NAV_SCREENS=[
   {id:"profitpilot",label:"Profit Intel",subs:[["ppdash","Dashboard"],["ppmargin","Margin Analyser"],["ppvendor","Vendor Audit"],["ppbenchmark","Benchmarks"]]},
   {id:"planninghub",label:"Exit & Planning",subs:[["phbuysell","Buy/Sell Agreement"],["phdebt","Debt & Repayment Risk"],["phparter","Partnership Impact"]]},
   {id:"datagaps",label:"Data Intelligence",subs:[["dgdash","Overview"],["dgaccounting","Accounting"],["dgpayroll","Payroll"],["dgbanking","Banking"],["dgtax","Tax & CRA"],["dgerp","ERP Connector"],["dgroi","ROI Calculator"]]},
-  {id:"freetools",label:"Free Tools",subs:[["ft-salary","Salary Optimizer"],["ft-grants","Grant Scan"],["ft-passive","Passive Income"],["ft-payroll","Payroll Check"],["ft-cashflow","Cash Stress Test"],["ft-qsbc","QSBC Health"],["ft-cpa","CPA Preview"]]},
+  {id:"freetools",label:"Basic",subs:[["ft-salary","Salary Optimizer"],["ft-grants","Grant Scan"],["ft-passive","Passive Income"],["ft-payroll","Payroll Check"],["ft-cashflow","Cash Stress Test"],["ft-qsbc","QSBC Health"],["ft-cpa","CPA Preview"]]},
   {id:"mobile",label:"Mobile"},
   {id:"settings",label:"Settings",subs:[["profile","Profile"],["notifications","Notifications"],["integrations","Integrations"],["subscription","Subscription"],["advisor","Advisor"],["agent","AI Agent"]]},
 ];
@@ -2359,7 +2359,7 @@ function renderNav(){
   const total=critCount+taxHigh;
 
   document.getElementById("main-tabs").innerHTML=NAV_SCREENS.map(n=>`
-    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')" ${n.id==="cpaconnect"&&S.screen!==n.id?`style="border:1px solid rgba(14,138,125,.3);color:rgba(14,138,125,.8)"`:n.id==="freetools"&&S.screen!==n.id?`style="border:1px solid rgba(234,179,8,.4);color:rgba(234,179,8,.8)"`:""}>${n.id==="cpaconnect"?"⚡ "+n.label:n.id==="freetools"?"🆓 "+n.label:n.label}</button>
+    <button class="nav-tab${S.screen===n.id?" active":""}" onclick="navigateTo('${n.id}')" ${n.id==="cpaconnect"&&S.screen!==n.id?`style="border:1px solid rgba(14,138,125,.3);color:rgba(14,138,125,.8)"`:n.id==="freetools"&&S.screen!==n.id?`style="border:1px solid rgba(234,179,8,.4);color:rgba(234,179,8,.8)"`:""}>${n.id==="cpaconnect"?"⚡ "+n.label:n.id==="freetools"?"✓ "+n.label:n.label}</button>
   `).join("");
   // Auto-scroll active tab into view
   const activeBtn=document.querySelector(".nav-tab.active");
@@ -8613,6 +8613,7 @@ S.ft={
   homeOfficePct:15, vehicleBizPct:40, vehicleAnnualCost:9000,
   softwareCost:3200, profDevCost:1800, profFeesCost:1500, marketingCost:2400,
   investAmount:40000, investMix:"balanced", // "conservative"|"balanced"|"growth"
+  customExpenses:[], // [{id, label, val}] — user-added expense categories
 };
 S.ftProfile=null; // null = gate not answered yet | {emp:"0"|"1-5"|"6+", retains:true|false}
 
@@ -8688,11 +8689,11 @@ function renderFreeTools(){
   const T=ftTax(ft.province);
 
   // ── PROFILE GATE — 10 seconds, no account, just reorders relevance ──────────
-  if(!S.ftProfile){
+  if(!S.ftProfile || S.ftProfile.emp===undefined || S.ftProfile.retains===undefined){
     return`<div class="slide">
       <div style="background:linear-gradient(135deg,${C.navyMid},rgba(13,33,55,.95));border-radius:14px;padding:24px 22px;max-width:560px;margin:20px auto">
         <div style="text-align:center;margin-bottom:18px">
-          <span style="background:#FCD34D22;color:#FCD34D;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">FREE TOOLS</span>
+          <span style="background:#FCD34D22;color:#FCD34D;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">BASIC</span>
           <h2 style="font-size:18px;font-weight:700;color:white;margin-top:10px">Two quick questions — so we show you the tools that actually apply</h2>
           <p style="font-size:12px;color:rgba(255,255,255,.5);margin-top:4px">No account, no email — just helps us skip the tools that won't be useful yet</p>
         </div>
@@ -8722,7 +8723,7 @@ function renderFreeTools(){
     <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="background:#FCD34D22;color:#FCD34D;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">FREE TOOLS</span>
+          <span style="background:#FCD34D22;color:#FCD34D;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">BASIC</span>
           <span style="font-size:11px;color:rgba(255,255,255,.4)">No account required · No credit card</span>
         </div>
         <div style="font-size:16px;font-weight:700;color:white;margin-bottom:3px">7 free CCPC calculators — see exactly what you are leaving on the table</div>
@@ -8790,7 +8791,9 @@ function renderFreeTools(){
         {label:"Professional fees",val:ft.profFeesCost,key:"profFeesCost",claim:ft.profFeesCost,note:"Bookkeeping, legal, association dues"},
         {label:"Marketing",val:ft.marketingCost,key:"marketingCost",claim:ft.marketingCost,note:"Website, ads, business cards, listings"},
       ];
-      const totalExpenseClaim=expenseItems.reduce((a,e)=>a+e.claim,0);
+      const customExpenses=ft.customExpenses||[];
+      const customExpenseTotal=customExpenses.reduce((a,c)=>a+(+c.val||0),0);
+      const totalExpenseClaim=expenseItems.reduce((a,e)=>a+e.claim,0)+customExpenseTotal;
       const expenseTaxSaved=Math.round(totalExpenseClaim*(T.sbd+0.05)); // corp + avoided personal draw effect, rough
       const combinedSavingLo=estSavingLo+Math.round(expenseTaxSaved*0.6);
       const combinedSavingHi=estSavingHi+expenseTaxSaved;
@@ -8829,6 +8832,15 @@ function renderFreeTools(){
             <input type="number" value="${e.isPct?e.pct:e.val}" onchange="S.ft.${e.key}=+this.value;render()" style="width:100%;padding:6px 9px;border:1px solid ${C.border};border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:3px">
             <div style="font-size:10px;color:${C.slate}">${e.note}${e.isPct?" (%)":""}</div>
           </div>`).join("")}
+          ${customExpenses.map((c,ci)=>`<div style="margin-bottom:9px;background:white;border:1px solid ${C.teal}55;border-radius:8px;padding:9px 11px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;gap:8px">
+              <input type="text" value="${c.label}" onchange="S.ft.customExpenses[${ci}].label=this.value;render()" placeholder="Expense name" style="flex:1;font-size:11.5px;font-weight:600;color:${C.ink};border:none;border-bottom:1px solid ${C.border};padding:2px 0;background:transparent">
+              <button onclick="S.ft.customExpenses.splice(${ci},1);render()" title="Remove this expense" style="background:none;border:none;color:${C.red};font-size:14px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+            </div>
+            <input type="number" value="${c.val}" onchange="S.ft.customExpenses[${ci}].val=+this.value;render()" style="width:100%;padding:6px 9px;border:1px solid ${C.border};border-radius:6px;font-size:12px;box-sizing:border-box">
+          </div>`).join("")}
+          <button onclick="S.ft.customExpenses=S.ft.customExpenses||[];S.ft.customExpenses.push({label:'New expense',val:0});render()" style="width:100%;background:${C.mist};border:1px dashed ${C.border};border-radius:8px;padding:9px;font-size:12px;font-weight:600;color:${C.teal};cursor:pointer;margin-bottom:4px">+ Add another expense category</button>
+          <div style="font-size:10px;color:${C.slate};margin-bottom:14px">Add anything not listed — insurance, equipment, supplies, travel, association memberships</div>
         </div>
         <div>
           <div style="background:${C.mist};border-radius:12px;padding:16px;margin-bottom:12px">
